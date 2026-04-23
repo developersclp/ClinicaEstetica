@@ -315,7 +315,18 @@ export default function Agenda() {
       {tab === 'procedimentos' && <ProcedimentosTab defaultSubTab={procSubTab} />}
 
       <NovoAgendamentoModal open={showNew} onClose={() => { setShowNew(false); setPrefilledData(null); }} onSave={loadAll} initialDate={newInitDate} initialTime={newInitTime} prefilledData={prefilledData} bloqueios={bloqueios} bloqueiosGlobais={bloqueiosGlobais} />
-      <DetalhesAgendamentoModal open={!!showDetails} onClose={() => setShowDetails(null)} agendamento={showDetails} onUpdate={loadAll} />
+      <DetalhesAgendamentoModal open={!!showDetails} onClose={() => setShowDetails(null)} agendamento={showDetails} onUpdate={loadAll} onMarcarNovamente={(ag) => {
+        setShowDetails(null);
+        setPrefilledData({
+          agenda_cliente_id: ag.agenda_cliente_id,
+          servico_id: ag.servico_id,
+          profissional_id: ag.profissional_id,
+          observacoes: ag.observacoes
+        });
+        setNewInitDate('');
+        setNewInitTime('');
+        setShowNew(true);
+      }} />
       <BloqueioModal open={showBloqueio} onClose={() => { setShowBloqueio(false); setEditBloqueio(null); }} onSave={loadAll} profissionais={profissionais} bloqueio={editBloqueio} />
       <ListaEsperaModal open={showEspera} onClose={() => setShowEspera(false)} onSave={loadAll} />
       

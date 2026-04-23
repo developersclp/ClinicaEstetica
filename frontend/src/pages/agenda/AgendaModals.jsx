@@ -281,8 +281,8 @@ export function NovoAgendamentoModal({ open, onClose, onSave, initialDate, initi
         hora_fim: '',
         agenda_cliente_id: prefilledData?.agenda_cliente_id || null,
         servico_id: prefilledData?.servico_id || '',
-        profissional_id: '',
-        observacoes: '',
+        profissional_id: prefilledData?.profissional_id || '',
+        observacoes: prefilledData?.observacoes || '',
       }));
       setError('');
     }
@@ -411,7 +411,7 @@ export function NovoAgendamentoModal({ open, onClose, onSave, initialDate, initi
 /* ══════════════════════════════════════════════════════════════════
    APPOINTMENT DETAIL MODAL — FULL STATUS WORKFLOW + EDIT/REAGENDAR
    ══════════════════════════════════════════════════════════════════ */
-export function DetalhesAgendamentoModal({ open, onClose, agendamento, onUpdate }) {
+export function DetalhesAgendamentoModal({ open, onClose, agendamento, onUpdate, onMarcarNovamente }) {
   const [showCancel, setShowCancel] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -603,6 +603,11 @@ export function DetalhesAgendamentoModal({ open, onClose, agendamento, onUpdate 
               {canCancel && (
                 <button className="flex items-center gap-1.5 px-4 py-2.5 bg-red-50 text-red-500 border border-red-200 rounded-2xl text-sm font-medium hover:bg-red-100 transition-all" onClick={() => setShowCancel(true)}>
                   <FiXCircle size={14} /> Cancelar
+                </button>
+              )}
+              {ag.status === 'concluido' && (
+                <button className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-2xl text-sm font-medium hover:bg-emerald-100 transition-all" onClick={() => onMarcarNovamente && onMarcarNovamente(ag)}>
+                  <FiCalendar size={14} /> Marcar Novamente
                 </button>
               )}
             </div>

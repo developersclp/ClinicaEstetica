@@ -331,7 +331,7 @@ function ListaEsperaSubTab() {
     const detail = {
       agenda_cliente_id: le.agenda_cliente_id,
       servico_id: le.servico_id,
-      data: (le.datas_preferidas && le.datas_preferidas[0]) || le.data_desejada || new Date().toISOString().split('T')[0],
+      data: (le.datas_preferidas && le.datas_preferidas[0]) || le.data_desejada || new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
       hora: (le.horarios_preferidos && le.horarios_preferidos[0]) || le.horario_desejado || '',
       le_id: le.id,
     };

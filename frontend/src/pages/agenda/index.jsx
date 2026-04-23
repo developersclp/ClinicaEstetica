@@ -14,7 +14,12 @@ const ZOOM_OPTIONS = [
   { label: '60min', value: 60, slotH: 72 },
 ];
 
-function fmtDate(d) { return d.toISOString().split('T')[0]; }
+function fmtDate(d) { 
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function startOfWeek(d) { const r = new Date(d); r.setDate(r.getDate() - r.getDay()); return r; }
 function timeToMin(t) { if (!t) return 0; const p = t.split(':'); return parseInt(p[0]) * 60 + parseInt(p[1]); }

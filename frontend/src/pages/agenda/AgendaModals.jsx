@@ -122,7 +122,7 @@ function MultiDateCalendar({ selectedDates, onChange }) {
   const y = viewDate.getFullYear(), m = viewDate.getMonth();
   const firstDay = new Date(y, m, 1).getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -276,7 +276,7 @@ export function NovoAgendamentoModal({ open, onClose, onSave, initialDate, initi
       getProfissionais({}).then(r => setProfissionais(r.data)).catch(() => {});
       setForm(f => ({
         ...f,
-        data: prefilledData?.data || initialDate || new Date().toISOString().split('T')[0],
+        data: prefilledData?.data || initialDate || new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         hora_inicio: prefilledData?.hora || initialTime || '',
         hora_fim: '',
         agenda_cliente_id: prefilledData?.agenda_cliente_id || null,
@@ -672,7 +672,7 @@ export function BloqueioModal({ open, onClose, onSave, profissionais: profList, 
         });
       } else {
         setEditId(null);
-        setForm({ profissional_id: '', data: new Date().toISOString().split('T')[0], hora_inicio: '08:00', hora_fim: '18:00', tipo: 'ausencia', motivo: '' });
+        setForm({ profissional_id: '', data: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], hora_inicio: '08:00', hora_fim: '18:00', tipo: 'ausencia', motivo: '' });
       }
     }
   }, [open, bloqueio]);

@@ -63,7 +63,6 @@ def _auto_concluir_agendamentos(db: Session):
     db.query(Agendamento).filter(
         Agendamento.status.notin_(["cancelado", "nao_compareceu", "concluido"]),
         Agendamento.data == hoje,
-        Agendamento.hora_fim != None,
         Agendamento.hora_fim <= hora_atual
     ).update({"status": "concluido"}, synchronize_session=False)
     

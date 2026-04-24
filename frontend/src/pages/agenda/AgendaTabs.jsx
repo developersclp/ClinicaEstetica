@@ -184,7 +184,7 @@ function ServicosSubTab() {
         <div className="p-5 bg-white rounded-2xl shadow-card border border-secondary/30 space-y-3 animate-scaleIn">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div><label className={labelCls}>Nome *</label><input className={inputCls} value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} /></div>
-            <div><label className={labelCls}>Categoria *</label><select className={inputCls} value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}><option value="estetica">Estética</option><option value="unha">Unha</option></select></div>
+            <div><label className={labelCls}>Categoria *</label><select className={inputCls} value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}><option value="estetica">Estética</option><option value="unha">Nail Designer</option></select></div>
             <div><label className={labelCls}>Preço (R$) *</label><input type="number" step="0.01" className={inputCls} value={form.preco} onChange={e => setForm(f => ({ ...f, preco: e.target.value }))} /></div>
             <div><label className={labelCls}>Duração (min) *</label><input type="number" className={inputCls} value={form.duracao_minutos} onChange={e => setForm(f => ({ ...f, duracao_minutos: e.target.value }))} /></div>
           </div>
@@ -290,7 +290,7 @@ function ProfissionaisSubTab() {
           {servicos.map(s => (
             <label key={s.id} className="flex items-center gap-3 p-2 hover:bg-primary/30 rounded-xl cursor-pointer">
               <input type="checkbox" checked={linkIds.includes(s.id)} onChange={e => setLinkIds(e.target.checked ? [...linkIds, s.id] : linkIds.filter(i => i !== s.id))} className="accent-accent" />
-              <span className={`text-xs px-2 py-0.5 rounded-full ${s.categoria === 'estetica' ? 'bg-accent/10 text-accent' : 'bg-nail/10 text-nail-dark'}`}>{s.categoria}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${s.categoria === 'estetica' ? 'bg-accent/10 text-accent' : 'bg-nail/10 text-nail-dark'}`}>{s.categoria === 'estetica' ? 'Estética' : 'Nail Designer'}</span>
               <span className="text-sm">{s.nome}</span>
             </label>
           ))}

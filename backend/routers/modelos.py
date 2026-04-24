@@ -23,6 +23,7 @@ def listar_modelos(
             nome_procedimento=m.nome_procedimento,
             descricao=m.descricao,
             rosto_modelo_tipo=m.rosto_modelo_tipo,
+            tempo_eficiencia=m.tempo_eficiencia,
             created_at=m.created_at,
             total_campos=len(m.campos),
         ))
@@ -40,6 +41,7 @@ def criar_modelo(
         descricao=modelo.descricao,
         riscos_procedimento=modelo.riscos_procedimento,
         rosto_modelo_tipo=modelo.rosto_modelo_tipo,
+        tempo_eficiencia=modelo.tempo_eficiencia,
     )
     db.add(db_modelo)
     db.flush()
@@ -64,6 +66,7 @@ def criar_modelo(
         descricao=db_modelo.descricao,
         riscos_procedimento=db_modelo.riscos_procedimento,
         rosto_modelo_tipo=db_modelo.rosto_modelo_tipo,
+        tempo_eficiencia=db_modelo.tempo_eficiencia,
         created_at=db_modelo.created_at,
         campos=[CampoModeloResponse.model_validate(c) for c in db_modelo.campos],
         total_campos=len(db_modelo.campos),
@@ -85,6 +88,7 @@ def obter_modelo(
         descricao=modelo.descricao,
         riscos_procedimento=modelo.riscos_procedimento,
         rosto_modelo_tipo=modelo.rosto_modelo_tipo,
+        tempo_eficiencia=modelo.tempo_eficiencia,
         created_at=modelo.created_at,
         campos=[CampoModeloResponse.model_validate(c) for c in modelo.campos],
         total_campos=len(modelo.campos),
@@ -110,6 +114,8 @@ def atualizar_modelo(
         modelo.riscos_procedimento = data.riscos_procedimento
     if "rosto_modelo_tipo" in data.model_dump(exclude_unset=True):
         modelo.rosto_modelo_tipo = data.rosto_modelo_tipo
+    if "tempo_eficiencia" in data.model_dump(exclude_unset=True):
+        modelo.tempo_eficiencia = data.tempo_eficiencia
 
     if data.campos is not None:
         from models.anamnese import Resposta
@@ -159,6 +165,7 @@ def atualizar_modelo(
         nome_procedimento=modelo.nome_procedimento,
         descricao=modelo.descricao,
         rosto_modelo_tipo=modelo.rosto_modelo_tipo,
+        tempo_eficiencia=modelo.tempo_eficiencia,
         created_at=modelo.created_at,
         campos=[CampoModeloResponse.model_validate(c) for c in modelo.campos],
         total_campos=len(modelo.campos),

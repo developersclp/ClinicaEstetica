@@ -32,6 +32,7 @@ export default function BuilderModelo() {
   const [descricao, setDescricao] = useState('');
   const [riscosProcedimento, setRiscosProcedimento] = useState('');
   const [rostoModeloTipo, setRostoModeloTipo] = useState('');
+  const [tempoEficiencia, setTempoEficiencia] = useState('');
   const [campos, setCampos] = useState([emptyField()]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,7 @@ export default function BuilderModelo() {
           setDescricao(m.descricao || '');
           setRiscosProcedimento(m.riscos_procedimento || '');
           setRostoModeloTipo(m.rosto_modelo_tipo || '');
+          setTempoEficiencia(m.tempo_eficiencia ? m.tempo_eficiencia.toString() : '');
           setCampos(m.campos.map(c => ({ ...c, _id: c.id || Date.now() + Math.random() })));
         })
         .catch(console.error)
@@ -132,6 +134,7 @@ export default function BuilderModelo() {
         descricao: descricao || null,
         riscos_procedimento: riscosProcedimento || null,
         rosto_modelo_tipo: rostoModeloTipo || null,
+        tempo_eficiencia: tempoEficiencia ? parseInt(tempoEficiencia, 10) : null,
         campos: campos.map((c, i) => ({
           tipo: c.tipo,
           label: c.label,
@@ -222,6 +225,19 @@ export default function BuilderModelo() {
           />
           <p className="text-xs text-dark/40 mt-1">
             Este texto será exibido dinamicamente no parágrafo sobre riscos do Termo de Consentimento para este modelo.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-dark/60 mb-2">Tempo de Eficiência (Dias)</label>
+          <input
+            type="number"
+            value={tempoEficiencia}
+            onChange={(e) => setTempoEficiencia(e.target.value)}
+            placeholder="Ex: 20"
+            className="w-full px-4 py-3 rounded-2xl border border-secondary/50 bg-soft/50 focus:bg-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-dark placeholder:text-dark/30"
+          />
+          <p className="text-xs text-dark/40 mt-1">
+            Controle interno para aviso de retorno do paciente. O tempo começa a contar a partir da conclusão do procedimento.
           </p>
         </div>
       </div>

@@ -80,6 +80,7 @@ class AnamneseListResponse(BaseModel):
     nome_procedimento: Optional[str] = None
     created_at: Optional[datetime] = None
     finalizada_at: Optional[datetime] = None
+    tempo_eficiencia: Optional[int] = None
 
     class Config:
         from_attributes = True

@@ -43,6 +43,7 @@ def listar_anamneses(
             nome_procedimento=a.modelo.nome_procedimento if a.modelo else None,
             created_at=a.created_at,
             finalizada_at=a.finalizada_at,
+            tempo_eficiencia=a.modelo.tempo_eficiencia if a.modelo else None,
         )
         for a in anamneses
     ]

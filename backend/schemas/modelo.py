@@ -28,6 +28,7 @@ class ModeloBase(BaseModel):
     descricao: Optional[str] = None
     riscos_procedimento: Optional[str] = None
     rosto_modelo_tipo: Optional[Literal["muscular", "positionsfem"]] = None
+    tempo_eficiencia: Optional[int] = None
 
 
 class ModeloCreate(ModeloBase):
@@ -39,6 +40,7 @@ class ModeloUpdate(BaseModel):
     descricao: Optional[str] = None
     riscos_procedimento: Optional[str] = None
     rosto_modelo_tipo: Optional[Literal["muscular", "positionsfem"]] = None
+    tempo_eficiencia: Optional[int] = None
     campos: Optional[List[CampoModeloCreate]] = None
 
 
@@ -58,6 +60,7 @@ class ModeloListResponse(BaseModel):
     descricao: Optional[str] = None
     riscos_procedimento: Optional[str] = None
     rosto_modelo_tipo: Optional[Literal["muscular", "positionsfem"]] = None
+    tempo_eficiencia: Optional[int] = None
     created_at: Optional[datetime] = None
     total_campos: int = 0
 

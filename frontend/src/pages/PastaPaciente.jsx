@@ -117,6 +117,26 @@ export default function PastaPaciente() {
   const emAndamento = anamneses.filter(a => a.status === 'em_andamento');
   const finalizadas = anamneses.filter(a => a.status === 'finalizada');
 
+  const today = new Date();
+  // Zera horas para comparação justa de dias
+  today.setHours(0, 0, 0, 0);
+
+  const avisosEficiencia = finalizadas
+    .filter(a => a.tempo_eficiencia && a.finalizada_at)
+    .map(a => {
+      const dataFinalizada = new Date(a.finalizada_at);
+      dataFinalizada.setHours(0, 0, 0, 0);
+      const diffTime = today - dataFinalizada;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diasRestantes = a.tempo_eficiencia - diffDays;
+      return {
+        ...a,
+        diasPassados: diffDays,
+        diasRestantes: diasRestantes
+      };
+    })
+    .filter(a => a.diasRestantes <= 5 && a.diasRestantes >= -20);
+
   const inputClass = "w-full px-3 py-2.5 rounded-xl border border-secondary/50 bg-soft/30 focus:bg-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-dark text-sm";
 
   return (
@@ -131,6 +151,34 @@ export default function PastaPaciente() {
           <p className="text-dark/50 text-sm mt-0.5">{paciente.nome}</p>
         </div>
       </div>
+
+      {/* Avisos de Eficiência */}
+      {avisosEficiencia.length > 0 && (
+        <div className="space-y-3 mb-6">
+          {avisosEficiencia.map(aviso => {
+            const isAcabou = aviso.diasRestantes <= 0;
+            return (
+              <div key={`aviso-${aviso.id}`} className={`p-4 rounded-2xl flex items-start gap-3 shadow-sm ${isAcabou ? 'bg-red-50/80 border border-red-100' : 'bg-orange-50/80 border border-orange-100'}`}>
+                <div className={`mt-0.5 ${isAcabou ? 'text-red-500' : 'text-orange-500'}`}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <div>
+                  <h4 className={`text-sm font-semibold ${isAcabou ? 'text-red-800' : 'text-orange-800'}`}>
+                    {isAcabou ? 'Eficiência do Produto Acabou' : 'Atenção: Eficiência do Produto Próxima do Fim'}
+                  </h4>
+                  <p className={`text-sm mt-0.5 ${isAcabou ? 'text-red-600/90' : 'text-orange-700/90'}`}>
+                    O procedimento <strong>{aviso.nome_procedimento}</strong> realizado em {new Date(aviso.finalizada_at).toLocaleDateString('pt-BR')} {isAcabou ? 'atingiu seu tempo limite de eficiência' : `atingirá seu tempo limite de eficiência em ${aviso.diasRestantes} dia(s)`}. É um ótimo momento para entrar em contato e marcar uma nova consulta!
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Patient info card — View / Edit mode */}
       <div className="bg-white rounded-3xl p-6 shadow-card">

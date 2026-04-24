@@ -12,6 +12,7 @@ class ModeloAnamnese(Base):
     descricao = Column(Text, nullable=True)
     riscos_procedimento = Column(Text, nullable=True)  # Custom risks text for consent form
     rosto_modelo_tipo = Column(String(30), nullable=True)  # muscular | positionsfem
+    tempo_eficiencia = Column(Integer, nullable=True)  # Tempo de eficiência do produto/procedimento em dias
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

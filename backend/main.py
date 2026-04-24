@@ -22,6 +22,7 @@ from models.bloqueio_global import BloqueioGlobal
 from models.lista_espera import ListaEspera
 from models.lista_espera_detalhe import ListaEsperaData, ListaEsperaHorario
 from models.pagamento import Pagamento
+from models.plano import Plano, PlanoCliente
 from models.despesa import Despesa, ParcelaDespesa, CategoriaDespesa
 from models.cartao import CartaoCredito
 # Estoque models (import so tables are created)

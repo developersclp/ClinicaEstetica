@@ -286,3 +286,65 @@ class ListaEsperaResponse(BaseModel):
 
 class MarcarEnviadoRequest(BaseModel):
     id: int
+
+
+# ─── Planos ─────────────────────────────────────────────────────────
+class PlanoCreate(BaseModel):
+    nome: str
+    servico_ids: List[int]
+    quantidade_sessoes: int
+    valor: float = 0.0
+
+
+class PlanoUpdate(BaseModel):
+    nome: Optional[str] = None
+    servico_ids: Optional[List[int]] = None
+    quantidade_sessoes: Optional[int] = None
+    valor: Optional[float] = None
+    ativo: Optional[bool] = None
+
+
+class PlanoServicoNested(BaseModel):
+    id: int
+    nome: str
+    categoria: str
+
+    class Config:
+        from_attributes = True
+
+
+class PlanoResponse(BaseModel):
+    id: int
+    nome: str
+    quantidade_sessoes: int
+    valor: float
+    ativo: bool
+    servicos: List[PlanoServicoNested] = []
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PlanoClienteCreate(BaseModel):
+    plano_id: int
+    agenda_cliente_id: int
+    observacoes: Optional[str] = None
+    forma_pagamento: Optional[str] = None
+
+
+class PlanoClienteResponse(BaseModel):
+    id: int
+    plano_id: int
+    agenda_cliente_id: int
+    sessoes_restantes: int
+    observacoes: Optional[str] = None
+    pagamento_id: Optional[int] = None
+    status: str
+    created_at: Optional[datetime] = None
+    plano: Optional[PlanoResponse] = None
+    cliente_nome: Optional[str] = None
+    pagamento_status: Optional[str] = None
+
+    class Config:
+        from_attributes = True

@@ -7,6 +7,9 @@ import {
   getProfissionais, criarProfissional, atualizarProfissional, vincularServicos,
   getListaEspera, deletarListaEspera, getListaEsperaAnalise, resolverListaEspera,
   atualizarListaEspera,
+  getPlanos, criarPlano, atualizarPlano, deletarPlano,
+  atribuirPlano, getPlanosCliente, getTodosPlanoClientes, cancelarPlanoCliente,
+  getAgendaClientes as getClientes,
 } from '../../services/api';
 import { Modal, inputCls, btnPrimary, btnSecondary, btnDanger, labelCls } from './AgendaModals';
 
@@ -27,6 +30,7 @@ export function ClientesTab() {
   const [form, setForm] = useState({ nome: '', telefone: '', email: '', data_nascimento: '', observacoes: '', tags: '' });
   const [selectedHist, setSelectedHist] = useState(null);
   const [historico, setHistorico] = useState([]);
+  const [clientePlanos, setClientePlanos] = useState([]);
 
   const load = async () => {
     try { const r = await getAgendaClientes(busca); setClientes(r.data); } catch {}
@@ -47,7 +51,11 @@ export function ClientesTab() {
 
   const viewHistory = async (id) => {
     setSelectedHist(id);
-    try { const r = await getClienteAgendamentos(id); setHistorico(r.data); } catch {}
+    try {
+      const [r, pRes] = await Promise.all([getClienteAgendamentos(id), getPlanosCliente(id)]);
+      setHistorico(r.data);
+      setClientePlanos(pRes.data);
+    } catch {}
   };
 
   const isBirthday = (c) => {
@@ -115,6 +123,26 @@ export function ClientesTab() {
       </div>
 
       <Modal open={!!selectedHist} onClose={() => setSelectedHist(null)} title="Histórico de Agendamentos">
+        {/* Client Plans */}
+        {clientePlanos.length > 0 && (
+          <div className="mb-3 space-y-2">
+            <p className="text-[10px] text-dark/40 font-semibold uppercase tracking-wide">Planos Ativos</p>
+            {clientePlanos.map(pc => (
+              <div key={pc.id} className="p-3 bg-gradient-to-r from-accent/5 to-secondary/10 rounded-xl border border-accent/15 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
+                  <span className="text-sm">📦</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading font-semibold text-xs text-dark">{pc.plano?.nome}</p>
+                  <p className="text-[10px] text-dark/50">{pc.sessoes_restantes}/{pc.plano?.quantidade_sessoes} sessões restantes</p>
+                </div>
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                  pc.status === 'ativo' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-dark/40'
+                }`}>{pc.status === 'ativo' ? 'Ativo' : 'Concluído'}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {historico.map(ag => (
             <div key={ag.id} className="p-3 bg-soft rounded-xl flex items-center gap-3 text-sm">
@@ -142,7 +170,7 @@ export function ProcedimentosTab({ defaultSubTab = 'servicos' }) {
   return (
     <div className="animate-fadeIn">
       <div className="flex flex-wrap gap-2 mb-4">
-        {[['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['espera', 'Lista de Espera']].map(([key, label]) => (
+        {[['servicos', 'Serviços'], ['profissionais', 'Profissionais'], ['planos', 'Planos'], ['espera', 'Lista de Espera']].map(([key, label]) => (
           <button key={key} onClick={() => setSubTab(key)}
             className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-xs sm:text-sm font-medium transition-all ${subTab === key ? 'bg-gradient-to-r from-accent to-accent-dark text-white shadow-card' : 'bg-white text-dark/60 hover:bg-primary border border-secondary/30'}`}
           >{label}</button>
@@ -150,6 +178,7 @@ export function ProcedimentosTab({ defaultSubTab = 'servicos' }) {
       </div>
       {subTab === 'servicos' && <ServicosSubTab />}
       {subTab === 'profissionais' && <ProfissionaisSubTab />}
+      {subTab === 'planos' && <PlanosSubTab />}
       {subTab === 'espera' && <ListaEsperaSubTab />}
     </div>
   );
@@ -296,6 +325,236 @@ function ProfissionaisSubTab() {
           ))}
         </div>
         <div className="flex justify-end gap-3 mt-4"><button className={btnPrimary} onClick={handleLink}>Salvar</button></div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLANOS / PACOTES — Sub-tab
+   ═══════════════════════════════════════════════════════════════════ */
+const pagStatusColors = { pendente: 'bg-amber-50 text-amber-600', parcial: 'bg-blue-50 text-blue-600', pago: 'bg-emerald-50 text-emerald-600', atrasado: 'bg-red-50 text-red-500' };
+const pagStatusLabels = { pendente: 'Pendente', parcial: 'Parcial', pago: 'Pago', atrasado: 'Atrasado' };
+
+function PlanosSubTab() {
+  const [planos, setPlanos] = useState([]);
+  const [servicos, setServicos] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ nome: '', servico_ids: [], quantidade_sessoes: '', valor: '' });
+  // Assign modal
+  const [showAssign, setShowAssign] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [selectedCliente, setSelectedCliente] = useState(null);
+  const [assignObs, setAssignObs] = useState('');
+  const [assignForma, setAssignForma] = useState('');
+  // Assigned list
+  const [planoClientes, setPlanoClientes] = useState([]);
+  const [showAssigned, setShowAssigned] = useState(false);
+
+  const load = async () => {
+    try {
+      const [pRes, sRes] = await Promise.all([getPlanos({ apenas_ativos: false }), getServicos({})]);
+      setPlanos(pRes.data);
+      setServicos(sRes.data);
+    } catch {}
+  };
+  useEffect(() => { load(); }, []);
+
+  const handleSave = async () => {
+    try {
+      const payload = { ...form, quantidade_sessoes: parseInt(form.quantidade_sessoes), valor: parseFloat(form.valor), servico_ids: form.servico_ids };
+      if (editId) await atualizarPlano(editId, payload);
+      else await criarPlano(payload);
+      setShowForm(false); setEditId(null); load();
+    } catch {}
+  };
+
+  const toggleServico = (id) => {
+    setForm(f => ({
+      ...f,
+      servico_ids: f.servico_ids.includes(id) ? f.servico_ids.filter(i => i !== id) : [...f.servico_ids, id]
+    }));
+  };
+
+  const openAssign = async (plano) => {
+    setShowAssign(plano);
+    setSelectedCliente(null);
+    setAssignObs('');
+    setAssignForma('');
+    setAssignSearch('');
+    try { const r = await getAgendaClientes(); setClientes(r.data); } catch {}
+  };
+
+  const handleAssign = async () => {
+    if (!selectedCliente || !showAssign) return;
+    try {
+      await atribuirPlano({
+        plano_id: showAssign.id,
+        agenda_cliente_id: selectedCliente.id,
+        observacoes: assignObs || null,
+        forma_pagamento: assignForma || null,
+      });
+      setShowAssign(null);
+      load();
+    } catch {}
+  };
+
+  const loadAssigned = async () => {
+    try { const r = await getTodosPlanoClientes(); setPlanoClientes(r.data); setShowAssigned(true); } catch {}
+  };
+
+  const handleCancelPC = async (pcId) => {
+    if (!window.confirm('Cancelar este plano do cliente? O pagamento associado será removido.')) return;
+    try { await cancelarPlanoCliente(pcId); loadAssigned(); } catch {}
+  };
+
+  const filteredClientes = clientes.filter(c => !assignSearch || c.nome.toLowerCase().includes(assignSearch.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 justify-end">
+        <button className={`${btnSecondary} text-xs`} onClick={loadAssigned}>
+          📋 Ver Atribuições
+        </button>
+        <button className={btnPrimary} onClick={() => { setShowForm(true); setEditId(null); setForm({ nome: '', servico_ids: [], quantidade_sessoes: '', valor: '' }); }}>
+          <FiPlus className="inline mr-1" size={14} /> Novo Plano
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="p-5 bg-white rounded-2xl shadow-card border border-secondary/30 space-y-3 animate-scaleIn">
+          <h4 className="font-heading font-semibold text-sm text-dark">{editId ? 'Editar' : 'Novo'} Plano</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div><label className={labelCls}>Nome do Plano *</label><input className={inputCls} placeholder="Ex: Pacote Mão e Pé" value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} /></div>
+            <div><label className={labelCls}>Qtd de Sessões *</label><input type="number" className={inputCls} placeholder="Ex: 5" value={form.quantidade_sessoes} onChange={e => setForm(f => ({ ...f, quantidade_sessoes: e.target.value }))} /></div>
+            <div><label className={labelCls}>Valor Total (R$) *</label><input type="number" step="0.01" className={inputCls} placeholder="Ex: 450.00" value={form.valor} onChange={e => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
+          </div>
+          <div>
+            <label className={labelCls}>Serviços Incluídos *</label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {servicos.map(s => (
+                <button key={s.id} type="button" onClick={() => toggleServico(s.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                    form.servico_ids.includes(s.id)
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-white text-dark/50 border-secondary/30 hover:border-accent/40'
+                  }`}>
+                  {s.nome}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3"><button className={btnPrimary} onClick={handleSave}>Salvar</button><button className={btnSecondary} onClick={() => setShowForm(false)}>Cancelar</button></div>
+        </div>
+      )}
+
+      {/* Planos List */}
+      <div className="grid gap-3">
+        {planos.map(p => (
+          <div key={p.id} className={`p-4 bg-white rounded-2xl shadow-card border-l-4 border-accent flex items-start gap-4 ${!p.ativo ? 'opacity-50' : ''}`}>
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-secondary/30 flex items-center justify-center shrink-0">
+              <span className="text-lg">📦</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-semibold text-sm">{p.nome}{!p.ativo && <span className="ml-2 text-[10px] text-red-400 bg-red-50 px-1.5 py-0.5 rounded-full">Inativo</span>}</p>
+              <p className="text-xs text-dark/50 mt-0.5">{p.quantidade_sessoes} sessões • R${p.valor?.toFixed(2)}</p>
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {p.servicos?.map(s => (
+                  <span key={s.id} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${s.categoria === 'estetica' ? 'bg-accent/10 text-accent' : 'bg-nail/10 text-nail-dark'}`}>{s.nome}</span>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {p.ativo && (
+                <button className="px-3 py-1.5 bg-accent/10 text-accent rounded-xl text-xs font-semibold hover:bg-accent/20 transition-all" onClick={() => openAssign(p)}>
+                  Atribuir
+                </button>
+              )}
+              <button className="text-dark/40 hover:text-dark text-xs" onClick={() => {
+                setEditId(p.id);
+                setForm({ nome: p.nome, servico_ids: p.servicos?.map(s => s.id) || [], quantidade_sessoes: String(p.quantidade_sessoes), valor: String(p.valor) });
+                setShowForm(true);
+              }}><FiEdit2 size={14} /></button>
+              {p.ativo && (
+                <button className="text-red-300 hover:text-red-500 text-xs" onClick={async () => {
+                  if (window.confirm(`Desativar o plano "${p.nome}"?`)) {
+                    try { await deletarPlano(p.id); load(); } catch {}
+                  }
+                }}><FiTrash2 size={14} /></button>
+              )}
+            </div>
+          </div>
+        ))}
+        {!planos.length && <p className="text-center text-dark/40 text-sm py-8">Nenhum plano cadastrado</p>}
+      </div>
+
+      {/* Assign Modal */}
+      <Modal open={!!showAssign} onClose={() => setShowAssign(null)} title={`Atribuir: ${showAssign?.nome || ''}`}>
+        <div className="space-y-3">
+          <div>
+            <label className={labelCls}>Buscar Cliente</label>
+            <input className={inputCls} placeholder="Nome do cliente..." value={assignSearch} onChange={e => setAssignSearch(e.target.value)} />
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {filteredClientes.map(c => (
+              <button key={c.id} onClick={() => setSelectedCliente(c)}
+                className={`w-full text-left p-2 rounded-xl text-sm transition-all ${selectedCliente?.id === c.id ? 'bg-accent/10 border border-accent/30 text-accent font-semibold' : 'hover:bg-primary/30 text-dark/70'}`}>
+                {c.nome} <span className="text-xs text-dark/40">• {c.telefone}</span>
+              </button>
+            ))}
+          </div>
+          {selectedCliente && (
+            <div className="p-3 bg-accent/5 rounded-xl border border-accent/20">
+              <p className="text-xs font-semibold text-accent">Selecionado: {selectedCliente.nome}</p>
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Forma de Pagamento</label>
+              <select className={inputCls} value={assignForma} onChange={e => setAssignForma(e.target.value)}>
+                <option value="">Selecionar...</option>
+                <option value="pix">Pix</option>
+                <option value="dinheiro">Dinheiro</option>
+                <option value="cartao">Cartão</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Observações</label>
+              <input className={inputCls} placeholder="Opcional" value={assignObs} onChange={e => setAssignObs(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button className={btnSecondary} onClick={() => setShowAssign(null)}>Cancelar</button>
+            <button className={btnPrimary} onClick={handleAssign} disabled={!selectedCliente}>Atribuir Plano</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Assigned List Modal */}
+      <Modal open={showAssigned} onClose={() => setShowAssigned(false)} title="Planos Atribuídos">
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {planoClientes.map(pc => (
+            <div key={pc.id} className="p-3 bg-soft rounded-xl flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-semibold text-sm text-dark truncate">{pc.cliente_nome}</p>
+                <p className="text-xs text-dark/50">{pc.plano?.nome} • {pc.sessoes_restantes}/{pc.plano?.quantidade_sessoes} restantes</p>
+                {pc.pagamento_status && (
+                  <span className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${pagStatusColors[pc.pagamento_status] || ''}`}>
+                    {pagStatusLabels[pc.pagamento_status] || pc.pagamento_status}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                pc.status === 'ativo' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-dark/40'
+              }`}>{pc.status === 'ativo' ? 'Ativo' : 'Concluído'}</span>
+              <button className="text-red-300 hover:text-red-500" onClick={() => handleCancelPC(pc.id)}><FiTrash2 size={13} /></button>
+            </div>
+          ))}
+          {!planoClientes.length && <p className="text-center text-dark/40 py-4">Nenhum plano atribuído</p>}
+        </div>
       </Modal>
     </div>
   );

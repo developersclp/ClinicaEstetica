@@ -17,6 +17,7 @@ from models.bloqueio_global import BloqueioGlobal
 from models.lista_espera import ListaEspera
 from models.lista_espera_detalhe import ListaEsperaData, ListaEsperaHorario
 from models.pagamento import Pagamento
+from models.plano import Plano, PlanoCliente, plano_servicos
 from services.auth import get_current_user
 from schemas.agenda import (
     AgendaClienteCreate, AgendaClienteUpdate, AgendaClienteResponse,
@@ -26,6 +27,8 @@ from schemas.agenda import (
     BloqueioCreate, BloqueioResponse,
     BloqueioGlobalCreate, BloqueioGlobalUpdate, BloqueioGlobalResponse,
     ListaEsperaCreate, ListaEsperaUpdate, ListaEsperaResponse,
+    PlanoCreate, PlanoUpdate, PlanoResponse,
+    PlanoClienteCreate, PlanoClienteResponse,
 )
 
 router = APIRouter(prefix="/api/agenda", tags=["agenda"])
@@ -227,16 +230,41 @@ def criar_agendamento(
     db.add(ag)
     db.flush()
 
-    # Auto-create pending payment
-    pagamento = Pagamento(
-        agendamento_id=ag.id,
-        agenda_cliente_id=payload.agenda_cliente_id,
-        descricao=f"{servico.nome} - {cliente.nome}",
-        valor_total=servico.preco,
-        valor_pago=0.0,
-        status="pendente",
-        data_atendimento=payload.data,
-    )
+    # Check if client has an active plan covering this service
+    plano_cliente = db.query(PlanoCliente).join(Plano).filter(
+        PlanoCliente.agenda_cliente_id == payload.agenda_cliente_id,
+        PlanoCliente.status == "ativo",
+        PlanoCliente.sessoes_restantes > 0,
+        Plano.servicos.any(Servico.id == payload.servico_id),
+    ).first()
+
+    if plano_cliente:
+        # Deduct session from plan
+        plano_cliente.sessoes_restantes -= 1
+        if plano_cliente.sessoes_restantes <= 0:
+            plano_cliente.status = "concluido"
+        # Create zero-value payment (covered by plan)
+        pagamento = Pagamento(
+            agendamento_id=ag.id,
+            agenda_cliente_id=payload.agenda_cliente_id,
+            descricao=f"Coberto pelo plano: {plano_cliente.plano.nome}",
+            valor_total=0.0,
+            valor_pago=0.0,
+            status="pago",
+            data_atendimento=payload.data,
+            observacoes=f"Plano #{plano_cliente.plano.id} - sessão utilizada",
+        )
+    else:
+        # Auto-create pending payment
+        pagamento = Pagamento(
+            agendamento_id=ag.id,
+            agenda_cliente_id=payload.agenda_cliente_id,
+            descricao=f"{servico.nome} - {cliente.nome}",
+            valor_total=servico.preco,
+            valor_pago=0.0,
+            status="pendente",
+            data_atendimento=payload.data,
+        )
     db.add(pagamento)
     db.commit()
     db.refresh(ag)
@@ -308,9 +336,26 @@ def cancelar_agendamento(
         raise HTTPException(400, "Agendamento já está cancelado")
     ag.status = "cancelado"
 
-    # Delete associated payment
+    # Delete associated payment & restore plan session if applicable
     pag = db.query(Pagamento).filter(Pagamento.agendamento_id == ag.id).first()
     if pag:
+        # Check if this was a plan-covered appointment
+        if pag.valor_total == 0 and pag.observacoes and "Plano #" in (pag.observacoes or ""):
+            # Restore session to the plan
+            try:
+                plano_id_str = pag.observacoes.split("Plano #")[1].split(" ")[0]
+                plano_id = int(plano_id_str)
+                pc = db.query(PlanoCliente).filter(
+                    PlanoCliente.plano_id == plano_id,
+                    PlanoCliente.agenda_cliente_id == ag.agenda_cliente_id,
+                    PlanoCliente.status.in_(["ativo", "concluido"]),
+                ).first()
+                if pc:
+                    pc.sessoes_restantes += 1
+                    if pc.status == "concluido":
+                        pc.status = "ativo"
+            except (ValueError, IndexError):
+                pass  # Could not parse plan ID, skip restore
         db.delete(pag)
 
     db.commit()
@@ -1307,3 +1352,217 @@ def confirmar_agendamento(
     db.commit()
     db.refresh(ag)
     return ag
+
+# ═══════════════════════════════════════════════════════════════════
+# PLANOS / PACOTES
+# ═══════════════════════════════════════════════════════════════════
+
+@router.get("/planos", response_model=List[PlanoResponse])
+def listar_planos(
+    apenas_ativos: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = db.query(Plano)
+    if apenas_ativos:
+        q = q.filter(Plano.ativo == True)
+    return q.order_by(Plano.created_at.desc()).all()
+
+
+@router.post("/planos", response_model=PlanoResponse)
+def criar_plano(
+    payload: PlanoCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    servicos = db.query(Servico).filter(Servico.id.in_(payload.servico_ids)).all()
+    if not servicos:
+        raise HTTPException(400, "Nenhum serviço válido selecionado")
+    plano = Plano(
+        nome=payload.nome,
+        quantidade_sessoes=payload.quantidade_sessoes,
+        valor=payload.valor,
+    )
+    plano.servicos = servicos
+    db.add(plano)
+    db.commit()
+    db.refresh(plano)
+    return plano
+
+
+# ─── Static paths MUST come before /planos/{plano_id} ─────────────
+
+@router.get("/planos/clientes")
+def listar_plano_clientes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pcs = db.query(PlanoCliente).filter(
+        PlanoCliente.status.in_(["ativo", "concluido"])
+    ).order_by(PlanoCliente.created_at.desc()).all()
+    result = []
+    for pc in pcs:
+        pag_status = None
+        if pc.pagamento_id:
+            pag = db.query(Pagamento).filter(Pagamento.id == pc.pagamento_id).first()
+            pag_status = pag.status if pag else None
+        result.append(PlanoClienteResponse(
+            id=pc.id,
+            plano_id=pc.plano_id,
+            agenda_cliente_id=pc.agenda_cliente_id,
+            sessoes_restantes=pc.sessoes_restantes,
+            observacoes=pc.observacoes,
+            pagamento_id=pc.pagamento_id,
+            status=pc.status,
+            created_at=pc.created_at,
+            plano=pc.plano,
+            cliente_nome=pc.cliente.nome if pc.cliente else None,
+            pagamento_status=pag_status,
+        ))
+    return result
+
+
+@router.get("/planos/clientes/{cliente_id}")
+def planos_do_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pcs = db.query(PlanoCliente).filter(
+        PlanoCliente.agenda_cliente_id == cliente_id,
+        PlanoCliente.status.in_(["ativo", "concluido"]),
+    ).order_by(PlanoCliente.created_at.desc()).all()
+    result = []
+    for pc in pcs:
+        pag_status = None
+        if pc.pagamento_id:
+            pag = db.query(Pagamento).filter(Pagamento.id == pc.pagamento_id).first()
+            pag_status = pag.status if pag else None
+        result.append(PlanoClienteResponse(
+            id=pc.id,
+            plano_id=pc.plano_id,
+            agenda_cliente_id=pc.agenda_cliente_id,
+            sessoes_restantes=pc.sessoes_restantes,
+            observacoes=pc.observacoes,
+            pagamento_id=pc.pagamento_id,
+            status=pc.status,
+            created_at=pc.created_at,
+            plano=pc.plano,
+            cliente_nome=pc.cliente.nome if pc.cliente else None,
+            pagamento_status=pag_status,
+        ))
+    return result
+
+
+@router.post("/planos/atribuir")
+def atribuir_plano(
+    payload: PlanoClienteCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    plano = db.query(Plano).filter(Plano.id == payload.plano_id, Plano.ativo == True).first()
+    if not plano:
+        raise HTTPException(404, "Plano não encontrado ou inativo")
+    cliente = db.query(AgendaCliente).filter(AgendaCliente.id == payload.agenda_cliente_id).first()
+    if not cliente:
+        raise HTTPException(404, "Cliente não encontrado")
+
+    # Create payment entry (same flow as regular payments)
+    pagamento = Pagamento(
+        agenda_cliente_id=payload.agenda_cliente_id,
+        descricao=f"Plano: {plano.nome}",
+        valor_total=plano.valor,
+        valor_pago=0.0,
+        status="pendente",
+        data_atendimento=now_br().date(),
+        forma_pagamento=payload.forma_pagamento,
+    )
+    db.add(pagamento)
+    db.flush()
+
+    # Create plan-client link
+    pc = PlanoCliente(
+        plano_id=plano.id,
+        agenda_cliente_id=payload.agenda_cliente_id,
+        sessoes_restantes=plano.quantidade_sessoes,
+        observacoes=payload.observacoes,
+        pagamento_id=pagamento.id,
+        status="ativo",
+    )
+    db.add(pc)
+    db.commit()
+    db.refresh(pc)
+
+    return PlanoClienteResponse(
+        id=pc.id,
+        plano_id=pc.plano_id,
+        agenda_cliente_id=pc.agenda_cliente_id,
+        sessoes_restantes=pc.sessoes_restantes,
+        observacoes=pc.observacoes,
+        pagamento_id=pc.pagamento_id,
+        status=pc.status,
+        created_at=pc.created_at,
+        plano=pc.plano,
+        cliente_nome=cliente.nome,
+        pagamento_status=pagamento.status,
+    )
+
+
+@router.delete("/planos/clientes/{pc_id}")
+def cancelar_plano_cliente(
+    pc_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    pc = db.query(PlanoCliente).filter(PlanoCliente.id == pc_id).first()
+    if not pc:
+        raise HTTPException(404, "Atribuição não encontrada")
+
+    # Delete associated payment if exists
+    if pc.pagamento_id:
+        pag = db.query(Pagamento).filter(Pagamento.id == pc.pagamento_id).first()
+        if pag:
+            db.delete(pag)
+
+    pc.status = "cancelado"
+    db.commit()
+    return {"message": "Plano do cliente cancelado e pagamento removido"}
+
+
+# ─── Parameterized paths AFTER static paths ────────────────────────
+
+@router.put("/planos/{plano_id}", response_model=PlanoResponse)
+def atualizar_plano(
+    plano_id: int,
+    payload: PlanoUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    plano = db.query(Plano).filter(Plano.id == plano_id).first()
+    if not plano:
+        raise HTTPException(404, "Plano não encontrado")
+    data = payload.dict(exclude_unset=True)
+    servico_ids = data.pop("servico_ids", None)
+    if servico_ids is not None:
+        servicos = db.query(Servico).filter(Servico.id.in_(servico_ids)).all()
+        plano.servicos = servicos
+    for key, value in data.items():
+        setattr(plano, key, value)
+    db.commit()
+    db.refresh(plano)
+    return plano
+
+
+@router.delete("/planos/{plano_id}")
+def deletar_plano(
+    plano_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    plano = db.query(Plano).filter(Plano.id == plano_id).first()
+    if not plano:
+        raise HTTPException(404, "Plano não encontrado")
+    plano.ativo = False
+    db.commit()
+    return {"message": "Plano desativado"}
+

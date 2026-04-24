@@ -113,6 +113,16 @@ export const agendarDaListaEspera = (id, data) => api.post(`/api/agenda/lista-es
 export const resolverListaEspera = (id) => api.post(`/api/agenda/lista-espera/${id}/resolver`);
 export const getListaEsperaAnalise = () => api.get('/api/agenda/lista-espera/analise');
 
+// Planos / Pacotes
+export const getPlanos = (params) => api.get('/api/agenda/planos', { params });
+export const criarPlano = (data) => api.post('/api/agenda/planos', data);
+export const atualizarPlano = (id, data) => api.put(`/api/agenda/planos/${id}`, data);
+export const deletarPlano = (id) => api.delete(`/api/agenda/planos/${id}`);
+export const atribuirPlano = (data) => api.post('/api/agenda/planos/atribuir', data);
+export const getTodosPlanoClientes = () => api.get('/api/agenda/planos/clientes');
+export const getPlanosCliente = (clienteId) => api.get(`/api/agenda/planos/clientes/${clienteId}`);
+export const cancelarPlanoCliente = (pcId) => api.delete(`/api/agenda/planos/clientes/${pcId}`);
+
 // Bloqueios Globais
 export const getBloqueiosGlobais = () => api.get('/api/agenda/bloqueios-globais');
 export const criarBloqueioGlobal = (data) => api.post('/api/agenda/bloqueios-globais', data);

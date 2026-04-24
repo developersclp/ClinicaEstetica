@@ -29,6 +29,41 @@ class CategoriaDespesaResponse(BaseModel):
         from_attributes = True
 
 
+# ─── Cartão de Crédito ────────────────────────────────────────────
+class CartaoCreditoCreate(BaseModel):
+    nome: str
+    bandeira: Optional[str] = None
+    ultimos_digitos: Optional[str] = None
+    cor: Optional[str] = "#6B7280"
+    dia_fechamento: int = 1
+    dia_vencimento: int = 10
+
+
+class CartaoCreditoUpdate(BaseModel):
+    nome: Optional[str] = None
+    bandeira: Optional[str] = None
+    ultimos_digitos: Optional[str] = None
+    cor: Optional[str] = None
+    dia_fechamento: Optional[int] = None
+    dia_vencimento: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+class CartaoCreditoResponse(BaseModel):
+    id: int
+    nome: str
+    bandeira: Optional[str] = None
+    ultimos_digitos: Optional[str] = None
+    cor: Optional[str] = None
+    dia_fechamento: int
+    dia_vencimento: int
+    ativo: bool
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ─── Pagamento ─────────────────────────────────────────────────────
 class PagamentoUpdate(BaseModel):
     valor_pago: Optional[float] = None
@@ -103,6 +138,7 @@ class DespesaCreate(BaseModel):
     tipo: str = "clinica"  # clinica | pessoal
     valor_total: float
     forma_pagamento: Optional[str] = None
+    cartao_id: Optional[int] = None
     parcelas_total: int = 1
     data: date
     observacoes: Optional[str] = None
@@ -115,6 +151,7 @@ class DespesaUpdate(BaseModel):
     tipo: Optional[str] = None
     valor_total: Optional[float] = None
     forma_pagamento: Optional[str] = None
+    cartao_id: Optional[int] = None
     observacoes: Optional[str] = None
 
 
@@ -126,11 +163,13 @@ class DespesaResponse(BaseModel):
     tipo: str
     valor_total: float
     forma_pagamento: Optional[str] = None
+    cartao_id: Optional[int] = None
     parcelas_total: int
     data: date
     observacoes: Optional[str] = None
     created_at: Optional[datetime] = None
     categoria_rel: Optional[CategoriaDespesaResponse] = None
+    cartao: Optional[CartaoCreditoResponse] = None
     parcelas: List[ParcelaDespesaResponse] = []
 
     class Config:

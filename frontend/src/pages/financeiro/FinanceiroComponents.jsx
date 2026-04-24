@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiX, FiDollarSign, FiCreditCard, FiSmartphone, FiCheck, FiAlertTriangle, FiTag, FiPlus, FiEdit2, FiTrash2, FiInfo } from 'react-icons/fi';
+import { FiX, FiDollarSign, FiCreditCard, FiSmartphone, FiCheck, FiAlertTriangle, FiTag, FiPlus, FiEdit2, FiTrash2, FiInfo, FiCalendar } from 'react-icons/fi';
 import {
   atualizarPagamento,
   criarDespesa,
@@ -8,6 +8,11 @@ import {
   criarCategoriaDespesa,
   atualizarCategoriaDespesa,
   deletarCategoriaDespesa,
+  getCartoes,
+  criarCartao,
+  atualizarCartao,
+  deletarCartao,
+  getFaturaCartao,
 } from '../../services/api';
 
 // ─── SVG CHARTS ───────────────────────────────────────────────────
@@ -506,7 +511,7 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
 
 // ─── EXPENSE MODAL ────────────────────────────────────────────────
 
-export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
+export function ExpenseModal({ onClose, onSaved, categorias = [], cartoes = [] }) {
   // Inicializamos a data com timezone BR apropriado usando en-CA para YYYY-MM-DD local formating
   const todayBR = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   const [form, setForm] = useState({
@@ -516,6 +521,7 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
     tipo: 'clinica',
     valor_total: '',
     forma_pagamento: 'pix',
+    cartao_id: '',
     parcelas_total: 1,
     data: todayBR,
     observacoes: '',
@@ -525,6 +531,10 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nome || !form.valor_total) return;
+    if (form.forma_pagamento === 'cartao' && !form.cartao_id) {
+      alert('Selecione um cartão');
+      return;
+    }
     setSaving(true);
     try {
       const cat = categorias.find(c => c.id === parseInt(form.categoria_id));
@@ -534,6 +544,7 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
         categoria: cat ? cat.nome : form.categoria || 'Outros',
         valor_total: parseFloat(form.valor_total),
         parcelas_total: parseInt(form.parcelas_total) || 1,
+        cartao_id: form.forma_pagamento === 'cartao' && form.cartao_id ? parseInt(form.cartao_id) : null,
       });
       onSaved?.();
       onClose();
@@ -570,23 +581,12 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
 
           <div>
             <label className="block text-sm font-medium text-dark/60 mb-1">Descrição</label>
-            <input
-              type="text"
-              value={form.nome}
-              onChange={e => setForm({ ...form, nome: e.target.value })}
-              placeholder="Ex: Aluguel do consultório"
-              className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm"
-              required
-            />
+            <input type="text" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} placeholder="Ex: Aluguel do consultório" className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm" required />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-dark/60 mb-1">Categoria</label>
-            <select
-              value={form.categoria_id}
-              onChange={e => setForm({ ...form, categoria_id: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm"
-            >
+            <select value={form.categoria_id} onChange={e => setForm({ ...form, categoria_id: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm">
               <option value="">Selecione...</option>
               {categorias.filter(c => c.tipo === form.tipo || c.nome === 'Outros').map(c => (
                 <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>
@@ -597,24 +597,11 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-dark/60 mb-1">Valor Total (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.valor_total}
-                onChange={e => setForm({ ...form, valor_total: e.target.value })}
-                placeholder="0,00"
-                className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm"
-                required
-              />
+              <input type="number" step="0.01" min="0" value={form.valor_total} onChange={e => setForm({ ...form, valor_total: e.target.value })} placeholder="0,00" className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-dark/60 mb-1">Parcelas</label>
-              <select
-                value={form.parcelas_total}
-                onChange={e => setForm({ ...form, parcelas_total: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm appearance-none"
-              >
+              <select value={form.parcelas_total} onChange={e => setForm({ ...form, parcelas_total: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm appearance-none">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
                   <option key={n} value={n}>{n === 1 ? 'À vista' : `${n}x de ${form.valor_total ? 'R$ ' + (parseFloat(form.valor_total || 0) / n).toFixed(2) : ''}`}</option>
                 ))}
@@ -625,20 +612,11 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-dark/60 mb-1">Data</label>
-              <input
-                type="date"
-                value={form.data}
-                onChange={e => setForm({ ...form, data: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm"
-              />
+              <input type="date" value={form.data} onChange={e => setForm({ ...form, data: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm" />
             </div>
             <div>
               <label className="block text-sm font-medium text-dark/60 mb-1">Meio de Pgto</label>
-              <select
-                value={form.forma_pagamento}
-                onChange={e => setForm({ ...form, forma_pagamento: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm"
-              >
+              <select value={form.forma_pagamento} onChange={e => setForm({ ...form, forma_pagamento: e.target.value, cartao_id: '' })} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none bg-white text-sm">
                 <option value="dinheiro">Dinheiro</option>
                 <option value="pix">Pix</option>
                 <option value="cartao">Cartão</option>
@@ -647,21 +625,35 @@ export function ExpenseModal({ onClose, onSaved, categorias = [] }) {
             </div>
           </div>
 
+          {form.forma_pagamento === 'cartao' && (
+            <div>
+              <label className="block text-sm font-medium text-dark/60 mb-1">💳 Selecione o Cartão</label>
+              {cartoes.length === 0 ? (
+                <p className="text-xs text-red-500 bg-red-50 rounded-xl p-3">Nenhum cartão cadastrado. Cadastre primeiro em "Gerenciar Cartões".</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {cartoes.map(c => (
+                    <button key={c.id} type="button" onClick={() => setForm({ ...form, cartao_id: c.id.toString() })}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${form.cartao_id === c.id.toString() ? 'border-accent bg-accent/5 shadow-sm' : 'border-primary hover:border-secondary'}`}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: c.cor || '#6B7280' }}>{c.nome?.charAt(0)?.toUpperCase()}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark truncate">{c.nome} {c.ultimos_digitos ? `•••${c.ultimos_digitos}` : ''}</p>
+                        <p className="text-[10px] text-dark/40">{c.bandeira || ''} • Fecha dia {c.dia_fechamento}</p>
+                      </div>
+                      {form.cartao_id === c.id.toString() && <FiCheck size={16} className="text-accent shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-dark/60 mb-1">Observações</label>
-            <textarea
-              value={form.observacoes}
-              onChange={e => setForm({ ...form, observacoes: e.target.value })}
-              rows={2}
-              className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none resize-none bg-white text-sm"
-            />
+            <textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} rows={2} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none resize-none bg-white text-sm" />
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60"
-          >
+          <button type="submit" disabled={saving} className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar Gasto'}
           </button>
         </form>
@@ -900,6 +892,176 @@ export function CategoryManagerModal({ onClose, onSaved }) {
               ))}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── CARD MANAGER MODAL ──────────────────────────────────────────
+
+const BANDEIRAS = ['Visa', 'Mastercard', 'Elo', 'Amex', 'Hipercard', 'Outra'];
+const CORES_PRESET = ['#8A05BE', '#FF7A00', '#003399', '#E52B50', '#00A651', '#1A1A2E', '#6B7280', '#D4A574'];
+
+export function CardManagerModal({ onClose, onSaved }) {
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [nc, setNc] = useState({ nome: '', bandeira: 'Visa', ultimos_digitos: '', cor: '#8A05BE', dia_fechamento: 10, dia_vencimento: 15 });
+  const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => { try { const r = await getCartoes({ apenas_ativos: false }); setCards(r.data); } catch {} setLoading(false); };
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async () => {
+    if (!nc.nome.trim()) return;
+    setSaving(true);
+    try { await criarCartao(nc); setNc({ nome: '', bandeira: 'Visa', ultimos_digitos: '', cor: '#8A05BE', dia_fechamento: 10, dia_vencimento: 15 }); load(); onSaved?.(); }
+    catch (err) { alert(err.response?.data?.detail || 'Erro'); }
+    setSaving(false);
+  };
+
+  const handleUpdate = async (id) => {
+    if (!editing) return; setSaving(true);
+    try { await atualizarCartao(id, editing); setEditing(null); load(); onSaved?.(); }
+    catch (err) { alert(err.response?.data?.detail || 'Erro'); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Desativar este cartão?')) return;
+    try { await deletarCartao(id); load(); onSaved?.(); } catch (err) { alert(err.response?.data?.detail || 'Erro'); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading text-base sm:text-lg font-semibold text-dark">💳 Gerenciar Cartões</h3>
+            <button onClick={onClose} className="p-2 -mr-2 text-dark/40 hover:text-dark rounded-full hover:bg-soft transition"><FiX size={20} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+          <div className="bg-soft rounded-2xl p-4 space-y-3">
+            <p className="text-xs font-semibold text-dark/60 uppercase tracking-wider">Novo Cartão</p>
+            <input type="text" value={nc.nome} onChange={e => setNc({ ...nc, nome: e.target.value })} placeholder="Nome (ex: Nubank)" className="w-full px-4 py-2.5 rounded-xl border border-primary focus:border-accent outline-none text-sm bg-white" />
+            <div className="grid grid-cols-2 gap-2">
+              <select value={nc.bandeira} onChange={e => setNc({ ...nc, bandeira: e.target.value })} className="px-3 py-2.5 rounded-xl border border-primary text-sm bg-white">
+                {BANDEIRAS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <input type="text" maxLength={4} value={nc.ultimos_digitos} onChange={e => setNc({ ...nc, ultimos_digitos: e.target.value.replace(/\D/g, '') })} placeholder="4 últimos dígitos" className="px-3 py-2.5 rounded-xl border border-primary text-sm bg-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><label className="block text-[10px] text-dark/50 mb-1">Dia fechamento</label><input type="number" min={1} max={31} value={nc.dia_fechamento} onChange={e => setNc({ ...nc, dia_fechamento: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2.5 rounded-xl border border-primary text-sm bg-white" /></div>
+              <div><label className="block text-[10px] text-dark/50 mb-1">Dia vencimento</label><input type="number" min={1} max={31} value={nc.dia_vencimento} onChange={e => setNc({ ...nc, dia_vencimento: parseInt(e.target.value) || 10 })} className="w-full px-3 py-2.5 rounded-xl border border-primary text-sm bg-white" /></div>
+            </div>
+            <div>
+              <label className="block text-[10px] text-dark/50 mb-1">Cor do cartão</label>
+              <div className="flex gap-2 flex-wrap">
+                {CORES_PRESET.map(cor => (
+                  <button key={cor} type="button" onClick={() => setNc({ ...nc, cor })} className={`w-7 h-7 rounded-lg border-2 transition-all ${nc.cor === cor ? 'border-dark scale-110 shadow-md' : 'border-transparent'}`} style={{ background: cor }} />
+                ))}
+              </div>
+            </div>
+            <button onClick={handleCreate} disabled={saving || !nc.nome.trim()} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white text-sm font-medium hover:shadow-lg transition disabled:opacity-40"><FiPlus size={14} className="inline mr-1" /> Adicionar Cartão</button>
+          </div>
+          {loading ? <p className="text-center text-dark/40 py-6">Carregando...</p> : (
+            <div className="space-y-2">
+              {cards.map(card => (
+                <div key={card.id} className={`flex items-center gap-3 p-3 rounded-xl border ${card.ativo ? 'border-primary bg-white' : 'border-red-100 bg-red-50/50 opacity-60'}`}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: card.cor || '#6B7280' }}>{card.nome?.charAt(0)?.toUpperCase()}</div>
+                  {editing && editing._id === card.id ? (
+                    <>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <input className="w-full px-2 py-1 rounded-lg border border-accent text-sm outline-none bg-white" value={editing.nome || ''} onChange={e => setEditing({ ...editing, nome: e.target.value })} />
+                        <div className="grid grid-cols-2 gap-1">
+                          <input type="number" min={1} max={31} className="px-2 py-1 rounded-lg border border-primary text-xs bg-white" value={editing.dia_fechamento || ''} onChange={e => setEditing({ ...editing, dia_fechamento: parseInt(e.target.value) || 1 })} placeholder="Fecha" />
+                          <input type="number" min={1} max={31} className="px-2 py-1 rounded-lg border border-primary text-xs bg-white" value={editing.dia_vencimento || ''} onChange={e => setEditing({ ...editing, dia_vencimento: parseInt(e.target.value) || 10 })} placeholder="Vence" />
+                        </div>
+                      </div>
+                      <button onClick={() => handleUpdate(card.id)} className="p-2 text-accent bg-accent/10 rounded-lg hover:bg-accent/20 transition shrink-0"><FiCheck size={16} /></button>
+                      <button onClick={() => setEditing(null)} className="p-2 text-dark/40 hover:bg-dark/5 rounded-lg transition shrink-0"><FiX size={16} /></button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark truncate">{card.nome} {card.ultimos_digitos ? `•••${card.ultimos_digitos}` : ''}</p>
+                        <p className="text-[10px] text-dark/40">{card.bandeira || '—'} • Fecha dia {card.dia_fechamento} • Vence dia {card.dia_vencimento}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => setEditing({ _id: card.id, nome: card.nome, dia_fechamento: card.dia_fechamento, dia_vencimento: card.dia_vencimento })} className="p-2 text-dark/30 hover:text-accent hover:bg-accent/10 rounded-lg transition"><FiEdit2 size={16} /></button>
+                        {card.ativo && <button onClick={() => handleDelete(card.id)} className="p-2 text-dark/30 hover:text-red-400 hover:bg-red-50 rounded-lg transition"><FiTrash2 size={16} /></button>}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {cards.length === 0 && <p className="text-center text-dark/40 text-sm py-4">Nenhum cartão cadastrado</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── CARD FATURA MODAL ───────────────────────────────────────────
+
+export function CardFaturaModal({ cartaoId, onClose }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!cartaoId) return;
+    setLoading(true);
+    getFaturaCartao(cartaoId).then(res => setData(res.data)).catch(() => alert('Erro ao carregar fatura')).finally(() => setLoading(false));
+  }, [cartaoId]);
+
+  if (!cartaoId) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading text-base sm:text-lg font-semibold text-dark">💳 Fatura {data?.cartao?.nome || ''}</h3>
+            <button onClick={onClose} className="p-2 -mr-2 text-dark/40 hover:text-dark rounded-full hover:bg-soft transition"><FiX size={20} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+          {loading ? <div className="text-center py-8 text-dark/40">Carregando...</div> : data ? (
+            <>
+              <div className="rounded-2xl p-4 mb-4 text-white" style={{ background: `linear-gradient(135deg, ${data.cartao.cor || '#6B7280'}, ${data.cartao.cor || '#6B7280'}cc)` }}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium opacity-90">{data.cartao.bandeira || 'Cartão'}</span>
+                  <span className="text-xs opacity-70">•••{data.cartao.ultimos_digitos || '****'}</span>
+                </div>
+                <p className="text-2xl font-bold">R$ {data.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs opacity-70 mt-1">Período: {dataBR(data.periodo.inicio)} — {dataBR(data.periodo.fim)}</p>
+                <div className="flex gap-4 mt-2 text-xs opacity-80">
+                  <span>Fecha dia {data.cartao.dia_fechamento}</span>
+                  <span>Vence dia {data.cartao.dia_vencimento}</span>
+                </div>
+              </div>
+              <p className="text-xs font-semibold text-dark/50 uppercase tracking-wider mb-2">{data.despesas.length} gasto{data.despesas.length !== 1 ? 's' : ''} nesta fatura</p>
+              <div className="space-y-2">
+                {data.despesas.map(d => (
+                  <div key={d.id} className="flex items-center gap-3 p-3 rounded-xl bg-soft border border-primary/50">
+                    <span className="text-base shrink-0">{d.categoria_icone}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-dark truncate">{d.nome}</p>
+                      <p className="text-[10px] text-dark/40">{d.categoria} • {dataBR(d.data)}</p>
+                    </div>
+                    <p className="text-sm font-bold text-dark shrink-0">R$ {d.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                ))}
+                {data.despesas.length === 0 && <p className="text-center text-dark/40 text-sm py-6">Nenhum gasto nesta fatura</p>}
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

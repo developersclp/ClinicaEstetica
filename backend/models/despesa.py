@@ -26,12 +26,14 @@ class Despesa(Base):
     tipo = Column(String, nullable=False, default="clinica")  # clinica | pessoal
     valor_total = Column(Float, nullable=False, default=0.0)
     forma_pagamento = Column(String, nullable=True)  # dinheiro, pix, cartao, outro
+    cartao_id = Column(Integer, ForeignKey("cartoes_credito.id"), nullable=True)
     parcelas_total = Column(Integer, nullable=False, default=1)  # 1 = à vista
     data = Column(Date, nullable=False)
     observacoes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=get_brazil_time)
 
     categoria_rel = relationship("CategoriaDespesa", back_populates="despesas", lazy="joined")
+    cartao = relationship("CartaoCredito", back_populates="despesas", lazy="joined")
     parcelas = relationship("ParcelaDespesa", back_populates="despesa", cascade="all, delete-orphan", lazy="joined")
 
 

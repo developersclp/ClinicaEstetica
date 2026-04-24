@@ -17,11 +17,14 @@ import {
   getGraficoEvolucao,
   getGraficoDistribuicao,
   getClientesFinanceiro,
+  getCartoes,
+  getAlertasCartoes,
+  getGraficoGastosPorCartao,
 } from '../../services/api';
 import {
   StatCard, BarChart, LineChart, DonutChart,
   PaymentModal, ExpenseModal, ClientHistoryModal, CategoryManagerModal,
-  ConfirmModal,
+  ConfirmModal, CardManagerModal, CardFaturaModal,
 } from './FinanceiroComponents';
 
 // ─── Helper: formata data ISO para dd/mm/yyyy BR ─────────────────
@@ -111,23 +114,30 @@ function DashboardTab({ mes, ano }) {
   const [chartLine, setChartLine] = useState(null);
   const [chartPie, setChartPie] = useState(null);
   const [caixa, setCaixa] = useState(null);
+  const [cardChart, setCardChart] = useState(null);
+  const [cardAlertas, setCardAlertas] = useState([]);
+  const [selectedFatura, setSelectedFatura] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [dRes, bRes, lRes, pRes, cRes] = await Promise.all([
+      const [dRes, bRes, lRes, pRes, cRes, ccRes, caRes] = await Promise.all([
         getFinanceiroDashboard({ mes, ano }),
         getGraficoReceitaGastos({ ano }),
         getGraficoEvolucao({ meses: 6 }),
         getGraficoDistribuicao({ mes, ano }),
         getCaixa({ mes, ano }),
+        getGraficoGastosPorCartao({ mes, ano }),
+        getAlertasCartoes(),
       ]);
       setDash(dRes.data);
       setChartBar(bRes.data);
       setChartLine(lRes.data);
       setChartPie(pRes.data);
       setCaixa(cRes.data);
+      setCardChart(ccRes.data);
+      setCardAlertas(caRes.data);
     } catch (err) {
       console.error(err);
     }
@@ -240,6 +250,53 @@ function DashboardTab({ mes, ano }) {
           ))}
         </div>
       </div>
+
+      {/* Card spending breakdown */}
+      {cardChart && cardChart.dados?.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-card border border-primary/40">
+          <h3 className="font-heading text-xs sm:text-sm font-semibold text-dark mb-3 flex items-center gap-2">
+            <FiCreditCard size={15} className="text-accent" /> Gastos por Cartão — {MESES[mes - 1]}
+          </h3>
+
+          {/* Card alert banners */}
+          {cardAlertas.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {cardAlertas.map(a => (
+                <div key={a.cartao_id} className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <FiAlertTriangle size={14} className="text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-800 flex-1">
+                    <span className="font-semibold">{a.nome}</span> {a.ultimos_digitos ? `•••${a.ultimos_digitos}` : ''} — fatura fecha em <span className="font-bold">{a.dias_restantes} dia{a.dias_restantes !== 1 ? 's' : ''}</span>! Total: R$ {a.total_fatura.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {cardChart.dados.map((c, i) => (
+              <button
+                key={c.cartao_id || `outros-${i}`}
+                onClick={() => c.cartao_id && setSelectedFatura(c.cartao_id)}
+                className={`rounded-xl p-3 sm:p-4 text-left transition-all border ${c.cartao_id ? 'hover:shadow-md hover:scale-[1.02] cursor-pointer' : 'cursor-default'} border-primary/40`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: c.cor || '#9CA3AF' }}>
+                    {c.cartao_id ? (c.nome?.charAt(0)?.toUpperCase() || '?') : '💵'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-dark truncate">{c.nome}</p>
+                    {c.bandeira && <p className="text-[10px] text-dark/40">{c.bandeira} {c.ultimos_digitos ? `•••${c.ultimos_digitos}` : ''}</p>}
+                  </div>
+                </div>
+                <p className="text-sm sm:text-lg font-bold text-dark">R$ {c.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                {c.dia_fechamento && <p className="text-[10px] text-dark/40 mt-0.5">Fecha dia {c.dia_fechamento}</p>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedFatura && <CardFaturaModal cartaoId={selectedFatura} onClose={() => setSelectedFatura(null)} />}
     </div>
   );
 }
@@ -475,56 +532,68 @@ function EntradasTab({ mes, ano }) {
 function GastosTab({ mes, ano }) {
   const [despesas, setDespesas] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [cartoes, setCartoes] = useState([]);
+  const [cardAlertas, setCardAlertas] = useState([]);
+  const [cardChart, setCardChart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showNewExpense, setShowNewExpense] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
+  const [showCardManager, setShowCardManager] = useState(false);
+  const [selectedFatura, setSelectedFatura] = useState(null);
   const [filterTipo, setFilterTipo] = useState('todos');
-  const [confirmParcela, setConfirmParcela] = useState(null); // { despId, parcela }
+  const [filterCartao, setFilterCartao] = useState('todos');
+  const [confirmParcela, setConfirmParcela] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = { mes, ano };
       if (filterTipo !== 'todos') params.tipo = filterTipo;
-      const [dRes, cRes] = await Promise.all([
+      if (filterCartao !== 'todos') {
+        if (filterCartao === 'sem_cartao') {
+          // Will filter client-side
+        } else {
+          params.cartao_id = parseInt(filterCartao);
+        }
+      }
+      const [dRes, cRes, ctRes, alRes, ccRes] = await Promise.all([
         getDespesas(params),
         getCategoriasDespesa(),
+        getCartoes(),
+        getAlertasCartoes(),
+        getGraficoGastosPorCartao({ mes, ano }),
       ]);
-      setDespesas(dRes.data);
+      let desp = dRes.data;
+      if (filterCartao === 'sem_cartao') {
+        desp = desp.filter(d => !d.cartao_id);
+      }
+      setDespesas(desp);
       setCategorias(cRes.data);
+      setCartoes(ctRes.data);
+      setCardAlertas(alRes.data);
+      setCardChart(ccRes.data);
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
-  }, [mes, ano, filterTipo]);
+  }, [mes, ano, filterTipo, filterCartao]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleDelete = async (id) => {
     if (!confirm('Remover esta despesa?')) return;
-    try {
-      await deletarDespesa(id);
-      loadData();
-    } catch (err) {
-      alert('Erro ao remover');
-    }
+    try { await deletarDespesa(id); loadData(); } catch (err) { alert('Erro ao remover'); }
   };
 
   const handleConfirmParcela = async () => {
     if (!confirmParcela) return;
     const { despId, parcela } = confirmParcela;
     try {
-      // Usa data BR (fuso São Paulo)
       const now = new Date();
       const brDate = now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-      await atualizarParcela(despId, parcela.id, {
-        pago: !parcela.pago,
-        data_pagamento: !parcela.pago ? brDate : null,
-      });
+      await atualizarParcela(despId, parcela.id, { pago: !parcela.pago, data_pagamento: !parcela.pago ? brDate : null });
       loadData();
-    } catch (err) {
-      alert('Erro ao atualizar parcela');
-    }
+    } catch (err) { alert('Erro ao atualizar parcela'); }
     setConfirmParcela(null);
   };
 
@@ -534,6 +603,25 @@ function GastosTab({ mes, ano }) {
 
   return (
     <div className="space-y-4 animate-fadeIn">
+      {/* Card alerts */}
+      {cardAlertas.length > 0 && (
+        <div className="space-y-2">
+          {cardAlertas.map(a => (
+            <div key={a.cartao_id} className="flex items-center gap-3 p-3 rounded-2xl bg-amber-50 border border-amber-200 cursor-pointer hover:bg-amber-100 transition" onClick={() => setSelectedFatura(a.cartao_id)}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: a.cor || '#6B7280' }}>
+                <FiAlertTriangle size={14} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-800">
+                  ⚠️ {a.nome} {a.ultimos_digitos ? `•••${a.ultimos_digitos}` : ''} — fecha em {a.dias_restantes} dia{a.dias_restantes !== 1 ? 's' : ''}!
+                </p>
+                <p className="text-[10px] text-amber-700">Fatura atual: R$ {a.total_fatura.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-card border border-primary/40 text-center">
@@ -550,30 +638,59 @@ function GastosTab({ mes, ano }) {
         </div>
       </div>
 
+      {/* Card summary cards — per-card spending */}
+      {cardChart && cardChart.dados?.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {cardChart.dados.map((c, i) => (
+            <button
+              key={c.cartao_id || `outros-${i}`}
+              onClick={() => {
+                if (c.cartao_id) {
+                  setFilterCartao(filterCartao === c.cartao_id.toString() ? 'todos' : c.cartao_id.toString());
+                } else {
+                  setFilterCartao(filterCartao === 'sem_cartao' ? 'todos' : 'sem_cartao');
+                }
+              }}
+              className={`flex-shrink-0 rounded-xl p-3 border transition-all min-w-[140px] text-left ${
+                (filterCartao === (c.cartao_id ? c.cartao_id.toString() : 'sem_cartao'))
+                  ? 'border-accent bg-accent/5 shadow-sm scale-[1.02]'
+                  : 'border-primary/40 bg-white hover:border-secondary'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded flex items-center justify-center text-white text-[8px] font-bold" style={{ background: c.cor || '#9CA3AF' }}>
+                  {c.cartao_id ? (c.nome?.charAt(0) || '?') : '💵'}
+                </div>
+                <span className="text-[10px] font-medium text-dark truncate">{c.nome}</span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-dark">R$ {c.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+            </button>
+          ))}
+          {filterCartao !== 'todos' && (
+            <button onClick={() => setFilterCartao('todos')} className="flex-shrink-0 rounded-xl p-3 border border-red-200 bg-red-50 text-red-600 text-xs font-medium min-w-[80px] flex items-center justify-center hover:bg-red-100 transition">
+              ✕ Limpar
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col gap-2">
         <div className="flex gap-2">
-          <select
-            value={filterTipo}
-            onChange={e => setFilterTipo(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-xl border border-primary text-xs sm:text-sm bg-white text-dark/70"
-          >
+          <select value={filterTipo} onChange={e => setFilterTipo(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-primary text-xs sm:text-sm bg-white text-dark/70">
             <option value="todos">Todos os tipos</option>
             <option value="clinica">🏥 Clínica</option>
             <option value="pessoal">👤 Pessoal</option>
           </select>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowCatManager(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-primary text-xs sm:text-sm text-dark/60 hover:border-accent hover:text-accent transition"
-          >
+          <button onClick={() => setShowCardManager(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-primary text-xs sm:text-sm text-dark/60 hover:border-accent hover:text-accent transition">
+            <FiCreditCard size={14} /> Cartões
+          </button>
+          <button onClick={() => setShowCatManager(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-primary text-xs sm:text-sm text-dark/60 hover:border-accent hover:text-accent transition">
             <FiSettings size={14} /> Categorias
           </button>
-          <button
-            onClick={() => setShowNewExpense(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white text-xs sm:text-sm font-medium hover:shadow-lg transition"
-          >
+          <button onClick={() => setShowNewExpense(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white text-xs sm:text-sm font-medium hover:shadow-lg transition">
             <FiPlus size={15} /> Novo Gasto
           </button>
         </div>
@@ -584,7 +701,7 @@ function GastosTab({ mes, ano }) {
       ) : despesas.length === 0 ? (
         <div className="text-center py-12 text-dark/40">
           <FiArrowUp size={36} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Nenhuma despesa neste mês</p>
+          <p className="text-sm">Nenhuma despesa {filterCartao !== 'todos' ? 'neste cartão' : 'neste mês'}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -605,6 +722,11 @@ function GastosTab({ mes, ano }) {
                         </span>
                         <span className="text-[10px] sm:text-xs text-dark/40">{d.categoria_rel?.nome || d.categoria}</span>
                         <span className="text-[10px] sm:text-xs text-dark/40">• {dataBR(d.data)}</span>
+                        {d.cartao && (
+                          <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ background: d.cartao.cor || '#6B7280' }}>
+                            💳 {d.cartao.nome}{d.cartao.ultimos_digitos ? ` •${d.cartao.ultimos_digitos}` : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -624,15 +746,8 @@ function GastosTab({ mes, ano }) {
                       <p className="text-[10px] sm:text-xs font-medium text-dark/50 mb-2">Parcelas</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                         {d.parcelas.map(p => (
-                          <button
-                            key={p.id}
-                            onClick={() => setConfirmParcela({ despId: d.id, parcela: p })}
-                            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-[10px] sm:text-xs transition-all ${
-                              p.pago
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                                : 'bg-white border-primary text-dark/60 hover:border-accent'
-                            }`}
-                          >
+                          <button key={p.id} onClick={() => setConfirmParcela({ despId: d.id, parcela: p })}
+                            className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-[10px] sm:text-xs transition-all ${p.pago ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-primary text-dark/60 hover:border-accent'}`}>
                             {p.pago ? <FiCheckCircle size={11} /> : <FiClock size={11} />}
                             <span>{p.numero_parcela}/{d.parcelas_total}</span>
                             <span className="font-medium">R$ {p.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -652,19 +767,19 @@ function GastosTab({ mes, ano }) {
       {confirmParcela && (
         <ConfirmModal
           title={confirmParcela.parcela.pago ? 'Desmarcar Parcela' : 'Confirmar Pagamento'}
-          message={
-            confirmParcela.parcela.pago
-              ? `Deseja desmarcar a parcela ${confirmParcela.parcela.numero_parcela} como não paga?`
-              : `Confirmar pagamento da parcela ${confirmParcela.parcela.numero_parcela} no valor de R$ ${confirmParcela.parcela.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}?`
-          }
+          message={confirmParcela.parcela.pago
+            ? `Deseja desmarcar a parcela ${confirmParcela.parcela.numero_parcela} como não paga?`
+            : `Confirmar pagamento da parcela ${confirmParcela.parcela.numero_parcela} no valor de R$ ${confirmParcela.parcela.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}?`}
           confirmLabel={confirmParcela.parcela.pago ? 'Desmarcar' : 'Confirmar Pagamento'}
           onConfirm={handleConfirmParcela}
           onCancel={() => setConfirmParcela(null)}
         />
       )}
 
-      {showNewExpense && <ExpenseModal onClose={() => setShowNewExpense(false)} onSaved={loadData} categorias={categorias} />}
+      {showNewExpense && <ExpenseModal onClose={() => setShowNewExpense(false)} onSaved={loadData} categorias={categorias} cartoes={cartoes} />}
       {showCatManager && <CategoryManagerModal onClose={() => setShowCatManager(false)} onSaved={loadData} />}
+      {showCardManager && <CardManagerModal onClose={() => setShowCardManager(false)} onSaved={loadData} />}
+      {selectedFatura && <CardFaturaModal cartaoId={selectedFatura} onClose={() => setSelectedFatura(null)} />}
     </div>
   );
 }

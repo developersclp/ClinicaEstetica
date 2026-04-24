@@ -5,11 +5,13 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from typing import Optional, List
 import pytz
+from calendar import monthrange
 
 from database import get_db
 from models.user import User
 from models.pagamento import Pagamento
 from models.despesa import Despesa, ParcelaDespesa, CategoriaDespesa
+from models.cartao import CartaoCredito
 from models.agendamento import Agendamento
 from models.agenda_cliente import AgendaCliente
 from services.auth import get_current_user
@@ -18,6 +20,7 @@ from schemas.financeiro import (
     DespesaCreate, DespesaUpdate, DespesaResponse,
     ParcelaDespesaUpdate, ParcelaDespesaResponse,
     CategoriaDespesaCreate, CategoriaDespesaUpdate, CategoriaDespesaResponse,
+    CartaoCreditoCreate, CartaoCreditoUpdate, CartaoCreditoResponse,
 )
 
 router = APIRouter(prefix="/api/financeiro", tags=["financeiro"])
@@ -102,6 +105,248 @@ def deletar_categoria(
     cat.ativo = False
     db.commit()
     return {"message": "Categoria desativada"}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CARTÕES DE CRÉDITO
+# ═══════════════════════════════════════════════════════════════════
+
+def _get_fatura_cycle(dia_fechamento: int, ref_date: date = None):
+    """Return (start_date, end_date) of the billing cycle for ref_date."""
+    if ref_date is None:
+        ref_date = _now_br().date()
+    # Clamp dia_fechamento to actual month days
+    y, m = ref_date.year, ref_date.month
+    max_day = monthrange(y, m)[1]
+    dia_f = min(dia_fechamento, max_day)
+
+    # If we haven't passed closing day this month, cycle is prev_close+1 → close
+    close_this_month = date(y, m, dia_f)
+    if ref_date.day <= dia_f:
+        # Current cycle closes this month
+        end_date = close_this_month
+        prev = close_this_month - relativedelta(months=1)
+        prev_max = monthrange(prev.year, prev.month)[1]
+        start_date = date(prev.year, prev.month, min(dia_fechamento, prev_max)) + timedelta(days=1)
+    else:
+        # Already passed closing, cycle closes next month
+        nxt = close_this_month + relativedelta(months=1)
+        nxt_max = monthrange(nxt.year, nxt.month)[1]
+        end_date = date(nxt.year, nxt.month, min(dia_fechamento, nxt_max))
+        start_date = close_this_month + timedelta(days=1)
+    return start_date, end_date
+
+
+@router.get("/cartoes", response_model=List[CartaoCreditoResponse])
+def listar_cartoes(
+    apenas_ativos: bool = True,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    q = db.query(CartaoCredito)
+    if apenas_ativos:
+        q = q.filter(CartaoCredito.ativo == True)
+    return q.order_by(CartaoCredito.nome).all()
+
+
+@router.post("/cartoes", response_model=CartaoCreditoResponse)
+def criar_cartao(
+    payload: CartaoCreditoCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if payload.dia_fechamento < 1 or payload.dia_fechamento > 31:
+        raise HTTPException(400, "Dia de fechamento deve ser entre 1 e 31")
+    if payload.dia_vencimento < 1 or payload.dia_vencimento > 31:
+        raise HTTPException(400, "Dia de vencimento deve ser entre 1 e 31")
+    cartao = CartaoCredito(**payload.dict())
+    db.add(cartao)
+    db.commit()
+    db.refresh(cartao)
+    return cartao
+
+
+@router.put("/cartoes/{cartao_id}", response_model=CartaoCreditoResponse)
+def atualizar_cartao(
+    cartao_id: int,
+    payload: CartaoCreditoUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cartao = db.query(CartaoCredito).filter(CartaoCredito.id == cartao_id).first()
+    if not cartao:
+        raise HTTPException(404, "Cartão não encontrado")
+    for key, value in payload.dict(exclude_unset=True).items():
+        setattr(cartao, key, value)
+    db.commit()
+    db.refresh(cartao)
+    return cartao
+
+
+@router.delete("/cartoes/{cartao_id}")
+def deletar_cartao(
+    cartao_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    cartao = db.query(CartaoCredito).filter(CartaoCredito.id == cartao_id).first()
+    if not cartao:
+        raise HTTPException(404, "Cartão não encontrado")
+    cartao.ativo = False
+    db.commit()
+    return {"message": "Cartão desativado"}
+
+
+@router.get("/cartoes/alertas")
+def alertas_cartoes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns cards whose billing cycle closes within 5 days."""
+    hoje = _now_br().date()
+    cartoes = db.query(CartaoCredito).filter(CartaoCredito.ativo == True).all()
+    alertas = []
+    for c in cartoes:
+        _, end_date = _get_fatura_cycle(c.dia_fechamento, hoje)
+        dias_restantes = (end_date - hoje).days
+        if 0 <= dias_restantes <= 5:
+            # Calculate current invoice total
+            start_date, _ = _get_fatura_cycle(c.dia_fechamento, hoje)
+            total_fatura = db.query(func.coalesce(func.sum(Despesa.valor_total), 0)).filter(
+                Despesa.cartao_id == c.id,
+                Despesa.data >= start_date,
+                Despesa.data <= end_date,
+            ).scalar()
+            alertas.append({
+                "cartao_id": c.id,
+                "nome": c.nome,
+                "bandeira": c.bandeira,
+                "ultimos_digitos": c.ultimos_digitos,
+                "cor": c.cor,
+                "dia_fechamento": c.dia_fechamento,
+                "dias_restantes": dias_restantes,
+                "data_fechamento": str(end_date),
+                "total_fatura": float(total_fatura),
+            })
+    return alertas
+
+
+@router.get("/cartoes/{cartao_id}/fatura")
+def fatura_cartao(
+    cartao_id: int,
+    mes: Optional[int] = None,
+    ano: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get invoice detail for a card in a given month."""
+    cartao = db.query(CartaoCredito).filter(CartaoCredito.id == cartao_id).first()
+    if not cartao:
+        raise HTTPException(404, "Cartão não encontrado")
+
+    hoje = _now_br().date()
+    ref = date(ano or hoje.year, mes or hoje.month, min(cartao.dia_fechamento, 28))
+    start_date, end_date = _get_fatura_cycle(cartao.dia_fechamento, ref)
+
+    despesas = db.query(Despesa).filter(
+        Despesa.cartao_id == cartao_id,
+        Despesa.data >= start_date,
+        Despesa.data <= end_date,
+    ).order_by(Despesa.data.desc()).all()
+
+    total = sum(d.valor_total for d in despesas)
+
+    return {
+        "cartao": {
+            "id": cartao.id, "nome": cartao.nome, "bandeira": cartao.bandeira,
+            "ultimos_digitos": cartao.ultimos_digitos, "cor": cartao.cor,
+            "dia_fechamento": cartao.dia_fechamento, "dia_vencimento": cartao.dia_vencimento,
+        },
+        "periodo": {"inicio": str(start_date), "fim": str(end_date)},
+        "total": total,
+        "despesas": [
+            {
+                "id": d.id, "nome": d.nome, "valor_total": d.valor_total,
+                "data": str(d.data), "categoria": d.categoria_rel.nome if d.categoria_rel else d.categoria,
+                "categoria_icone": d.categoria_rel.icone if d.categoria_rel else "📌",
+            }
+            for d in despesas
+        ],
+    }
+
+
+@router.get("/graficos/gastos-por-cartao")
+def grafico_gastos_por_cartao(
+    mes: Optional[int] = None,
+    ano: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Spending breakdown per card for the month, plus non-card spending."""
+    hoje = _now_br().date()
+    mes = mes or hoje.month
+    ano = ano or hoje.year
+
+    cartoes = db.query(CartaoCredito).filter(CartaoCredito.ativo == True).all()
+    dados = []
+
+    for c in cartoes:
+        total = db.query(func.coalesce(func.sum(Despesa.valor_total), 0)).filter(
+            Despesa.cartao_id == c.id,
+            extract("month", Despesa.data) == mes,
+            extract("year", Despesa.data) == ano,
+        ).scalar()
+        if float(total) > 0:
+            dados.append({
+                "cartao_id": c.id,
+                "nome": c.nome,
+                "bandeira": c.bandeira,
+                "ultimos_digitos": c.ultimos_digitos,
+                "cor": c.cor,
+                "dia_fechamento": c.dia_fechamento,
+                "total": float(total),
+            })
+
+    # Non-card expenses
+    outros = db.query(func.coalesce(func.sum(Despesa.valor_total), 0)).filter(
+        Despesa.cartao_id.is_(None),
+        extract("month", Despesa.data) == mes,
+        extract("year", Despesa.data) == ano,
+    ).scalar()
+    if float(outros) > 0:
+        dados.append({
+            "cartao_id": None,
+            "nome": "Outros (Pix/Dinheiro)",
+            "bandeira": None,
+            "ultimos_digitos": None,
+            "cor": "#9CA3AF",
+            "dia_fechamento": None,
+            "total": float(outros),
+        })
+
+    return {"mes": mes, "ano": ano, "dados": dados}
+
+
+@router.get("/graficos/evolucao-cartao")
+def grafico_evolucao_cartao(
+    cartao_id: int,
+    meses: int = 6,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Monthly spending evolution for a specific card over last N months."""
+    hoje = _now_br().date()
+    dados = []
+    for i in range(meses - 1, -1, -1):
+        d = hoje - relativedelta(months=i)
+        m, a = d.month, d.year
+        total = db.query(func.coalesce(func.sum(Despesa.valor_total), 0)).filter(
+            Despesa.cartao_id == cartao_id,
+            extract("month", Despesa.data) == m,
+            extract("year", Despesa.data) == a,
+        ).scalar()
+        dados.append({"mes": m, "ano": a, "total": float(total)})
+    return {"cartao_id": cartao_id, "dados": dados}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -393,6 +638,7 @@ def listar_despesas(
     categoria: Optional[str] = None,
     mes: Optional[int] = None,
     ano: Optional[int] = None,
+    cartao_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -405,6 +651,8 @@ def listar_despesas(
         q = q.filter(extract("month", Despesa.data) == mes)
     if ano:
         q = q.filter(extract("year", Despesa.data) == ano)
+    if cartao_id:
+        q = q.filter(Despesa.cartao_id == cartao_id)
     return q.order_by(Despesa.data.desc()).all()
 
 
@@ -421,6 +669,7 @@ def criar_despesa(
         tipo=payload.tipo,
         valor_total=payload.valor_total,
         forma_pagamento=payload.forma_pagamento,
+        cartao_id=payload.cartao_id,
         parcelas_total=payload.parcelas_total,
         data=payload.data,
         observacoes=payload.observacoes,

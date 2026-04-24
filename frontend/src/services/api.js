@@ -157,6 +157,16 @@ export const getCaixa = (params) => api.get('/api/financeiro/caixa', { params })
 export const getGraficoReceitaGastos = (params) => api.get('/api/financeiro/graficos/receita-gastos', { params });
 export const getGraficoEvolucao = (params) => api.get('/api/financeiro/graficos/evolucao', { params });
 export const getGraficoDistribuicao = (params) => api.get('/api/financeiro/graficos/distribuicao-gastos', { params });
+export const getGraficoGastosPorCartao = (params) => api.get('/api/financeiro/graficos/gastos-por-cartao', { params });
+export const getGraficoEvolucaoCartao = (cartaoId, params) => api.get(`/api/financeiro/graficos/evolucao-cartao`, { params: { cartao_id: cartaoId, ...params } });
+
+// Cartões de Crédito
+export const getCartoes = (params) => api.get('/api/financeiro/cartoes', { params });
+export const criarCartao = (data) => api.post('/api/financeiro/cartoes', data);
+export const atualizarCartao = (id, data) => api.put(`/api/financeiro/cartoes/${id}`, data);
+export const deletarCartao = (id) => api.delete(`/api/financeiro/cartoes/${id}`);
+export const getAlertasCartoes = () => api.get('/api/financeiro/cartoes/alertas');
+export const getFaturaCartao = (id, params) => api.get(`/api/financeiro/cartoes/${id}/fatura`, { params });
 
 // ─── Estoque ────────────────────────────────────────────────────
 // Dashboard & Indicadores

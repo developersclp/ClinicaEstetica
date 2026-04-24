@@ -23,6 +23,7 @@ from models.lista_espera import ListaEspera
 from models.lista_espera_detalhe import ListaEsperaData, ListaEsperaHorario
 from models.pagamento import Pagamento
 from models.despesa import Despesa, ParcelaDespesa, CategoriaDespesa
+from models.cartao import CartaoCredito
 # Estoque models (import so tables are created)
 from models.estoque import Produto, MovimentacaoEstoque, Fornecedor
 from services.auth import get_password_hash, get_current_user
@@ -184,6 +185,8 @@ def run_migrations_and_seed():
             ("agenda_clientes", "tags", "VARCHAR"),
             # agendamentos table
             ("agendamentos", "confirmacao_enviada", "BOOLEAN DEFAULT FALSE"),
+            # Cartões de crédito
+            ("despesas", "cartao_id", "INTEGER REFERENCES cartoes_credito(id)"),
         ]
 
         # ── Create new tables if they don't exist ──────────────────

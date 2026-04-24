@@ -171,6 +171,7 @@ def run_migrations_and_seed():
             ("pacientes", "genero", "VARCHAR(10)"),
             # modelos_anamnese table
             ("modelos_anamnese", "rosto_modelo_tipo", "VARCHAR(30)"),
+            ("modelos_anamnese", "tempo_eficiencia", "INTEGER"),
             # anamneses table
             ("anamneses", "rosto_editado_path", "VARCHAR"),
             ("anamneses", "uso_imagem_escolha", "VARCHAR(20)"),

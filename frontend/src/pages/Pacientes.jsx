@@ -7,6 +7,7 @@ export default function Pacientes() {
   const [pacientes, setPacientes] = useState([]);
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
+  const [filtrarAvisos, setFiltrarAvisos] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,6 +33,8 @@ export default function Pacientes() {
     window._searchTimeout = setTimeout(() => loadPacientes(value), 300);
   };
 
+  const pacientesFiltrados = pacientes.filter(p => filtrarAvisos ? p.tem_aviso_eficiencia : true);
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -41,16 +44,30 @@ export default function Pacientes() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" size={18} />
-        <input
-          type="text"
-          value={busca}
-          onChange={handleSearch}
-          placeholder="Buscar por nome..."
-          className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-secondary/50 bg-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-dark placeholder:text-dark/30"
-        />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative w-full max-w-md">
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" size={18} />
+          <input
+            type="text"
+            value={busca}
+            onChange={handleSearch}
+            placeholder="Buscar por nome..."
+            className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-secondary/50 bg-white focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-dark placeholder:text-dark/30"
+          />
+        </div>
+        
+        <button
+          onClick={() => setFiltrarAvisos(!filtrarAvisos)}
+          className={`flex items-center gap-2 px-4 py-3.5 rounded-2xl border transition-all text-sm font-medium ${
+            filtrarAvisos 
+              ? 'bg-red-50 border-red-200 text-red-600' 
+              : 'bg-white border-secondary/50 text-dark/60 hover:bg-soft'
+          }`}
+        >
+          <div className={`w-2.5 h-2.5 rounded-full ${filtrarAvisos ? 'bg-red-500 animate-pulse' : 'bg-dark/20'}`}></div>
+          {filtrarAvisos ? 'Mostrando Avisos' : 'Filtrar Avisos'}
+        </button>
       </div>
 
       {/* List */}
@@ -67,17 +84,17 @@ export default function Pacientes() {
             </div>
           ))}
         </div>
-      ) : pacientes.length === 0 ? (
+      ) : pacientesFiltrados.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-20 h-20 mx-auto rounded-3xl bg-primary flex items-center justify-center mb-4">
             <FiUser className="text-accent" size={32} />
           </div>
           <p className="text-dark/50 font-heading">Nenhum paciente encontrado</p>
-          <p className="text-dark/30 text-sm mt-1">Os pacientes serão criados ao iniciar uma anamnese</p>
+          <p className="text-dark/30 text-sm mt-1">{filtrarAvisos ? 'Nenhum paciente com aviso de eficiência no momento' : 'Os pacientes serão criados ao iniciar uma anamnese'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {pacientes.map((p, i) => (
+          {pacientesFiltrados.map((p, i) => (
             <button
               key={p.id}
               onClick={() => navigate(`/pacientes/${p.id}`)}

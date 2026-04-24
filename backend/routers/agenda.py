@@ -247,7 +247,7 @@ def criar_agendamento(
         pagamento = Pagamento(
             agendamento_id=ag.id,
             agenda_cliente_id=payload.agenda_cliente_id,
-            descricao=f"Coberto pelo plano: {plano_cliente.plano.nome}",
+            descricao=f"Coberto pelo plano: {plano_cliente.plano.nome} ({servico.nome})",
             valor_total=0.0,
             valor_pago=0.0,
             status="pago",

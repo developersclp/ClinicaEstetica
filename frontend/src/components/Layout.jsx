@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FiHome, FiUsers, FiFileText, FiClipboard, FiPlusCircle, FiCalendar, FiMenu, FiX, FiLogOut, FiChevronLeft, FiChevronRight, FiDollarSign, FiBox } from 'react-icons/fi';
+import { FiHome, FiUsers, FiFileText, FiClipboard, FiPlusCircle, FiCalendar, FiMenu, FiX, FiLogOut, FiChevronLeft, FiChevronRight, FiDollarSign, FiBox, FiDownload } from 'react-icons/fi';
 
 const navItems = [
   { to: '/', icon: FiHome, label: 'Dashboard' },
@@ -18,6 +18,39 @@ export default function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI notify the user they can install the PWA
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    
+    // Show the install prompt
+    deferredPrompt.prompt();
+    
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -86,6 +119,19 @@ export default function Layout() {
                 <span className={`whitespace-nowrap ${!sidebarOpen && sidebarCollapsed ? 'lg:hidden' : ''}`}>{label}</span>
               </NavLink>
             ))}
+
+            {isInstallable && (
+              <button
+                onClick={handleInstallClick}
+                className={`
+                  w-full mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200
+                  bg-gradient-to-r from-accent to-accent-dark text-white shadow-card hover:shadow-hover hover:-translate-y-0.5
+                `}
+              >
+                <FiDownload size={20} className="shrink-0" />
+                <span className={`whitespace-nowrap ${!sidebarOpen && sidebarCollapsed ? 'lg:hidden' : ''}`}>Baixar App</span>
+              </button>
+            )}
           </nav>
 
           {/* User section */}

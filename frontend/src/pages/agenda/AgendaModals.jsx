@@ -15,8 +15,7 @@ function timeToMin(t) { if (!t) return 0; const p = t.split(':'); return parseIn
 function Modal({ open, onClose, title, children, wide }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div
         className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-elegant ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[92vh] overflow-y-auto animate-scaleIn`}
         onClick={e => e.stopPropagation()}

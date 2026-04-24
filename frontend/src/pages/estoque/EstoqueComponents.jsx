@@ -241,8 +241,7 @@ export function EstoqueStatCard({ icon: Icon, label, value, color = 'accent', su
 // ═══════════════════════════════════════════════════════════════════
 function ModalBase({ title, onClose, children, maxW = 'max-w-lg' }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3" onClick={onClose}>
       <div
         className={`relative bg-white rounded-2xl shadow-hover ${maxW} w-full max-h-[85vh] overflow-y-auto animate-scaleIn`}
         onClick={e => e.stopPropagation()}
@@ -663,8 +662,7 @@ export function FornecedorModal({ fornecedor, onClose, onSaved }) {
 // ═══════════════════════════════════════════════════════════════════
 export function ConfirmModal({ title, message, confirmLabel, onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
       <div className="relative bg-white rounded-2xl shadow-hover max-w-sm w-full p-5 animate-scaleIn" onClick={e => e.stopPropagation()}>
         <h3 className="font-heading text-sm font-semibold text-dark mb-2">{title}</h3>
         <p className="text-xs sm:text-sm text-dark/60 mb-4">{message}</p>

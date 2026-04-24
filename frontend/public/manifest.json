@@ -1,0 +1,25 @@
+{
+  "name": "Dra. Gisele Santos — Estética e Saúde",
+  "short_name": "Dra. Gisele",
+  "description": "Sistema de Gestão — Clínica de Estética e Saúde",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#C6A77D",
+  "orientation": "any",
+  "categories": ["business", "health"],
+  "icons": [
+    {
+      "src": "/logo-oficial.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-oficial.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

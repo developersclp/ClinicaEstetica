@@ -81,7 +81,7 @@ export default function Pacientes() {
             <button
               key={p.id}
               onClick={() => navigate(`/pacientes/${p.id}`)}
-              className="bg-white rounded-3xl p-5 shadow-card hover:shadow-hover transition-all duration-300 text-left group hover:-translate-y-1 animate-fadeIn"
+              className="relative bg-white rounded-3xl p-5 shadow-card hover:shadow-hover transition-all duration-300 text-left group hover:-translate-y-1 animate-fadeIn"
               style={{ animationDelay: `${i * 0.05}s` }}
             >
               <div className="flex items-start gap-4">
@@ -97,6 +97,9 @@ export default function Pacientes() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
+                  {p.tem_aviso_eficiencia && (
+                    <span title="Eficiência de procedimento próxima do fim" className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse absolute top-4 right-4"></span>
+                  )}
                   <span className="px-2.5 py-1 rounded-xl bg-accent/10 text-accent text-xs font-medium">
                     {p.total_anamneses} ficha{p.total_anamneses !== 1 ? 's' : ''}
                   </span>

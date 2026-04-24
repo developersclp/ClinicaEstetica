@@ -44,6 +44,7 @@ class PacienteListResponse(BaseModel):
     genero: Literal["masculino", "feminino"]
     created_at: Optional[datetime] = None
     total_anamneses: Optional[int] = 0
+    tem_aviso_eficiencia: bool = False
 
     class Config:
         from_attributes = True

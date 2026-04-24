@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from database import get_db
+from database import get_db, get_brazil_time
 from models.paciente import Paciente
 from models.anamnese import Anamnese
+from models.modelo_anamnese import ModeloAnamnese
 from schemas.paciente import PacienteCreate, PacienteUpdate, PacienteResponse, PacienteListResponse
 from services.auth import get_current_user
 from models.user import User
@@ -23,6 +24,24 @@ def listar_pacientes(
         query = query.filter(Paciente.nome.ilike(f"%{busca}%"))
     pacientes = query.order_by(Paciente.nome).all()
 
+    # Pre-calculate warnings
+    today = get_brazil_time().replace(hour=0, minute=0, second=0, microsecond=0)
+    todas_finalizadas = db.query(Anamnese).join(ModeloAnamnese).filter(
+        Anamnese.status == "finalizada",
+        ModeloAnamnese.tempo_eficiencia.isnot(None),
+        Anamnese.finalizada_at.isnot(None)
+    ).all()
+
+    pacientes_com_aviso = set()
+    for a in todas_finalizadas:
+        data_finalizada = a.finalizada_at.replace(hour=0, minute=0, second=0, microsecond=0)
+        if data_finalizada.tzinfo:
+            data_finalizada = data_finalizada.astimezone(today.tzinfo).replace(hour=0, minute=0, second=0, microsecond=0)
+        diff_days = (today - data_finalizada).days
+        dias_restantes = a.modelo.tempo_eficiencia - diff_days
+        if -20 <= dias_restantes <= 5:
+            pacientes_com_aviso.add(a.paciente_id)
+
     result = []
     for p in pacientes:
         total = db.query(func.count(Anamnese.id)).filter(Anamnese.paciente_id == p.id).scalar()
@@ -34,6 +53,7 @@ def listar_pacientes(
             genero=p.genero,
             created_at=p.created_at,
             total_anamneses=total or 0,
+            tem_aviso_eficiencia=(p.id in pacientes_com_aviso),
         ))
     return result
 

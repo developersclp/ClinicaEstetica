@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo-oficial.png', 'texto_logo.png'],
+      includeAssets: ['favicon.svg', 'logo-oficial.png', 'texto_logo.png', 'pwa-icon.png'],
       manifest: {
         name: 'Dra. Gisele Santos — Estética e Saúde',
         short_name: 'Dra. Gisele',
@@ -18,7 +18,7 @@ export default defineConfig({
         orientation: 'portrait-primary',
         icons: [
           {
-            src: '/logo-oficial.png',
+            src: '/pwa-icon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

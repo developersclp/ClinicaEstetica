@@ -20,7 +20,7 @@ export default function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [showIOSModal, setShowIOSModal] = useState(false);
+  const [showFallbackModal, setShowFallbackModal] = useState(false);
 
   const isIOS = () => {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -47,18 +47,19 @@ export default function Layout() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      setDeferredPrompt(null);
-      setIsInstallable(false);
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+        setIsInstallable(false);
+      }
     } else {
       // Se já estiver instalado (standalone), não precisa fazer nada
       if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+        alert('O aplicativo já está rodando no modo instalado!');
         return;
       }
       
-      // Se não houver deferredPrompt e for iOS, mostra o modal instrucional nativo
-      if (isIOS()) {
-        setShowIOSModal(true);
-      }
+      // Se não houver deferredPrompt (ex: teste em HTTP no celular, iOS, etc), mostra o modal de instrução
+      setShowFallbackModal(true);
     }
   };
 
@@ -187,9 +188,9 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Modal de Instalação para iOS */}
-      {showIOSModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowIOSModal(false)}>
+      {/* Modal de Instalação Universal (Fallback) */}
+      {showFallbackModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowFallbackModal(false)}>
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl transform transition-all" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-gradient-to-br from-accent to-secondary rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4">
@@ -197,23 +198,40 @@ export default function Layout() {
               </div>
               <h3 className="text-xl font-heading font-bold text-dark">Instalar Aplicativo</h3>
               <p className="text-dark/60 mt-2 text-sm leading-relaxed">
-                No iPhone/iPad, a instalação é feita de forma nativa pelo Safari. Siga estes dois passos simples:
+                {isIOS() 
+                  ? "No iPhone/iPad, a instalação é feita de forma nativa pelo Safari. Siga estes dois passos:" 
+                  : "Não foi possível baixar automaticamente (talvez você esteja testando via IP local/HTTP). Instale manualmente usando o menu do navegador:"}
               </p>
             </div>
             
             <div className="bg-soft rounded-2xl p-4 mb-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">1</div>
-                <p className="text-sm font-medium text-dark/80">Toque no ícone <span className="font-bold text-accent">Compartilhar</span> na barra do Safari.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">2</div>
-                <p className="text-sm font-medium text-dark/80">Role para baixo e toque em <span className="font-bold text-accent">Adicionar à Tela de Início</span>.</p>
-              </div>
+              {isIOS() ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">1</div>
+                    <p className="text-sm font-medium text-dark/80">Toque no ícone <span className="font-bold text-accent">Compartilhar</span> na barra do Safari.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">2</div>
+                    <p className="text-sm font-medium text-dark/80">Role para baixo e toque em <span className="font-bold text-accent">Adicionar à Tela de Início</span>.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">1</div>
+                    <p className="text-sm font-medium text-dark/80">Toque nos <span className="font-bold text-accent">Três Pontos</span> no menu superior do navegador.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white shadow flex items-center justify-center font-bold text-accent shrink-0">2</div>
+                    <p className="text-sm font-medium text-dark/80">Selecione <span className="font-bold text-accent">Instalar aplicativo</span> ou <span className="font-bold text-accent">Adicionar à tela inicial</span>.</p>
+                  </div>
+                </>
+              )}
             </div>
             
             <button 
-              onClick={() => setShowIOSModal(false)}
+              onClick={() => setShowFallbackModal(false)}
               className="w-full bg-gradient-to-r from-accent to-accent-dark text-white font-semibold py-3 rounded-xl shadow-card hover:shadow-hover hover:-translate-y-0.5 transition-all"
             >
               Entendi

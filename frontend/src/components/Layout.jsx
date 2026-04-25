@@ -39,20 +39,12 @@ export default function Layout() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      alert("O aplicativo já está instalado ou seu navegador não suporta a instalação direta por este botão. No iPhone (Safari), toque no ícone de 'Compartilhar' e depois em 'Adicionar à Tela de Início'. No Android/Chrome, use o menu e selecione 'Instalar aplicativo'.");
-      return;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      setDeferredPrompt(null);
+      setIsInstallable(false);
     }
-    
-    // Show the install prompt
-    deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    // We've used the prompt, and can't use it again, throw it away
-    setDeferredPrompt(null);
-    setIsInstallable(false);
   };
 
   const handleLogout = () => {

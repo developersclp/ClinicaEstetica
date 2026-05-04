@@ -9,9 +9,9 @@ const VIEWS = ['dia', 'semana', 'mes', 'profissional'];
 const DAYS_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const ZOOM_OPTIONS = [
-  { label: '15min', value: 15, slotH: 20 },
-  { label: '30min', value: 30, slotH: 36 },
-  { label: '60min', value: 60, slotH: 72 },
+  { label: '15min', value: 15, slotH: 60 },
+  { label: '30min', value: 30, slotH: 90 },
+  { label: '60min', value: 60, slotH: 120 },
 ];
 
 function fmtDate(d) { 
@@ -39,7 +39,7 @@ export default function Agenda() {
   const [tab, setTab] = useState('agenda');
   const [procSubTab, setProcSubTab] = useState('servicos');
   const [view, setView] = useState('dia');
-  const [zoom, setZoom] = useState(60);
+  const [zoom, setZoom] = useState(30);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [agendamentos, setAgendamentos] = useState([]);
   const [bloqueios, setBloqueios] = useState([]);
@@ -533,8 +533,8 @@ function DayView({ date, agendamentos, bloqueios, bloqueiosGlobais = [], slotH, 
           const top = (timeToMin(ag.hora_inicio) - gridStart) * pxPerMin;
           const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 36);
           return (
-            <div key={ag.id} className="absolute z-[2] hover:z-[5] transition-all"
-              style={{ top: top + 1, minHeight: Math.max(h - 2, 85), height: 'auto', left: 'calc(3rem + 4px)', right: '4px' }}>
+            <div key={ag.id} className="absolute z-[2] transition-all"
+              style={{ top: top + 1, height: h - 2, left: 'calc(3rem + 4px)', right: '4px' }}>
               <EventCard ag={ag} onClick={onClickEvent} isWide={true} />
             </div>
           );
@@ -606,8 +606,8 @@ function WeekView({ date, agendamentos, bloqueios, bloqueiosGlobais = [], slotH,
               const top = (timeToMin(ag.hora_inicio) - gridStart) * pxPerMin;
               const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 24);
               return (
-                <div key={ag.id} className="absolute z-[2] px-0.5 hover:z-[5] transition-all"
-                  style={{ top: top + 1, minHeight: Math.max(h - 2, 80), height: 'auto', left: `calc(48px + ${di} * ((100% - 48px) / 7) + 2px)`, width: `calc((100% - 48px) / 7 - 4px)` }}>
+                <div key={ag.id} className="absolute z-[2] px-0.5 transition-all"
+                  style={{ top: top + 1, height: h - 2, left: `calc(48px + ${di} * ((100% - 48px) / 7) + 2px)`, width: `calc((100% - 48px) / 7 - 4px)` }}>
                   <EventCard ag={ag} onClick={onClickEvent} compact={false} />
                 </div>
               );
@@ -714,9 +714,9 @@ function ProfessionalView({ date, agendamentos, bloqueios, bloqueiosGlobais = []
                   const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 28);
                   return (
                     <div key={ag.id}
-                      className="absolute z-[2] px-0.5 hover:z-[5] transition-all"
+                      className="absolute z-[2] px-0.5 transition-all"
                       style={{
-                        top: top + 1, minHeight: Math.max(h - 2, 80), height: 'auto',
+                        top: top + 1, height: h - 2,
                         left: `calc(48px + ${pi} * ((100% - 48px) / ${colCount}) + 2px)`,
                         width: `calc((100% - 48px) / ${colCount} - 4px)`,
                       }}>

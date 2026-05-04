@@ -406,7 +406,7 @@ function EventCard({ ag, onClick, compact, isWide }) {
 
   return (
     <button onClick={e => { e.stopPropagation(); onClick(ag); }}
-      className={`w-full h-full text-left rounded-xl overflow-hidden transition-all hover:shadow-lg hover:brightness-[0.97] flex relative ${isWide ? 'flex-row items-center' : 'flex-col'}`}
+      className={`w-full h-auto min-h-full text-left rounded-xl transition-all hover:shadow-lg hover:brightness-[0.97] flex relative ${isWide ? 'flex-col sm:flex-row' : 'flex-col'}`}
       style={{
         background: st.bgLight,
         border: `1px solid ${st.border}`,
@@ -421,11 +421,11 @@ function EventCard({ ag, onClick, compact, isWide }) {
         </span>
       </div>
 
-      <div className={`p-2 flex-1 flex bg-gradient-to-br from-white/30 to-transparent min-h-0 min-w-0 h-full w-full ${isWide ? 'flex-col sm:flex-row sm:items-center gap-2 sm:gap-4' : 'flex-col'}`}>
+      <div className={`p-2 flex-1 flex bg-gradient-to-br from-white/30 to-transparent w-full ${isWide ? 'flex-col sm:flex-row sm:items-center gap-2 sm:gap-4' : 'flex-col gap-2'}`}>
         
         <div className={`flex items-start gap-1.5 ${isWide ? 'w-full sm:w-fit sm:max-w-[50%] shrink-0 pr-14 sm:pr-0' : 'pr-14'}`}>
           <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: st.bg }} />
-          <div className="min-w-0 overflow-hidden w-full">
+          <div className="min-w-0 w-full">
             <p className="font-bold text-xs sm:text-sm text-wrap break-words leading-tight" style={{ color: st.text }}>{ag.cliente?.nome || '—'}</p>
             <p className="text-[10px] text-dark/60 font-medium text-wrap break-words mt-0.5 leading-tight">{ag.servico?.nome} <span className="opacity-70">· {ag.profissional?.nome}</span></p>
             <p className="text-[10px] text-dark/40 font-medium mt-0.5">{ag.hora_inicio?.slice(0,5)} – {ag.hora_fim?.slice(0,5)}</p>
@@ -434,14 +434,14 @@ function EventCard({ ag, onClick, compact, isWide }) {
 
         {/* Observation prominently in the middle */}
         {ag.observacoes && (
-          <div className={`${isWide ? 'w-full sm:flex-1 sm:min-w-0 sm:h-full flex items-center sm:pr-20 overflow-hidden' : 'mt-1.5 flex-1 min-h-0 overflow-hidden w-full'}`}>
+          <div className={`${isWide ? 'w-full sm:flex-1 sm:min-w-0 flex items-center sm:pr-20' : 'flex-1 w-full'}`}>
             <div 
-              className={`inline-flex items-center gap-1.5 p-1.5 rounded-lg border border-white/30 w-full ${isWide ? 'sm:max-h-full' : ''}`}
+              className={`inline-flex items-center gap-1.5 p-1.5 rounded-lg border border-white/30 w-full`}
               style={{ background: 'rgba(255,255,255,0.4)' }}
               title={ag.observacoes}
             >
               <span className={`shrink-0 ${isWide ? 'text-xs' : 'text-[11px]'}`}>📝</span>
-              <span className={`text-[11px] font-medium leading-snug w-full ${isWide ? 'line-clamp-3' : 'line-clamp-2'}`} style={{ color: st.text }}>
+              <span className={`text-[11px] font-medium leading-snug w-full whitespace-normal break-words`} style={{ color: st.text }}>
                 {ag.observacoes}
               </span>
             </div>
@@ -533,8 +533,8 @@ function DayView({ date, agendamentos, bloqueios, bloqueiosGlobais = [], slotH, 
           const top = (timeToMin(ag.hora_inicio) - gridStart) * pxPerMin;
           const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 36);
           return (
-            <div key={ag.id} className="absolute z-[2]"
-              style={{ top: top + 1, height: h - 2, left: 'calc(3rem + 4px)', right: '4px' }}>
+            <div key={ag.id} className="absolute z-[2] hover:z-[5] transition-all"
+              style={{ top: top + 1, minHeight: Math.max(h - 2, 85), height: 'auto', left: 'calc(3rem + 4px)', right: '4px' }}>
               <EventCard ag={ag} onClick={onClickEvent} isWide={true} />
             </div>
           );
@@ -606,9 +606,9 @@ function WeekView({ date, agendamentos, bloqueios, bloqueiosGlobais = [], slotH,
               const top = (timeToMin(ag.hora_inicio) - gridStart) * pxPerMin;
               const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 24);
               return (
-                <div key={ag.id} className="absolute z-[2] px-0.5"
-                  style={{ top: top + 1, height: h - 2, left: `calc(48px + ${di} * ((100% - 48px) / 7) + 2px)`, width: `calc((100% - 48px) / 7 - 4px)` }}>
-                  <EventCard ag={ag} onClick={onClickEvent} compact={h < 40} />
+                <div key={ag.id} className="absolute z-[2] px-0.5 hover:z-[5] transition-all"
+                  style={{ top: top + 1, minHeight: Math.max(h - 2, 80), height: 'auto', left: `calc(48px + ${di} * ((100% - 48px) / 7) + 2px)`, width: `calc((100% - 48px) / 7 - 4px)` }}>
+                  <EventCard ag={ag} onClick={onClickEvent} compact={false} />
                 </div>
               );
             });
@@ -714,13 +714,13 @@ function ProfessionalView({ date, agendamentos, bloqueios, bloqueiosGlobais = []
                   const h = Math.max((timeToMin(ag.hora_fim) - timeToMin(ag.hora_inicio)) * pxPerMin, 28);
                   return (
                     <div key={ag.id}
-                      className="absolute z-[2] px-0.5"
+                      className="absolute z-[2] px-0.5 hover:z-[5] transition-all"
                       style={{
-                        top: top + 1, height: h - 2,
+                        top: top + 1, minHeight: Math.max(h - 2, 80), height: 'auto',
                         left: `calc(48px + ${pi} * ((100% - 48px) / ${colCount}) + 2px)`,
                         width: `calc((100% - 48px) / ${colCount} - 4px)`,
                       }}>
-                      <EventCard ag={ag} onClick={onClickEvent} compact={h < 40} />
+                      <EventCard ag={ag} onClick={onClickEvent} compact={false} />
                     </div>
                   );
                 })}

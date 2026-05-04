@@ -421,22 +421,22 @@ function EventCard({ ag, onClick, compact, isWide }) {
         </span>
       </div>
 
-      <div className={`p-2 flex-1 flex bg-gradient-to-br from-white/30 to-transparent min-h-0 min-w-0 h-full w-full ${isWide ? 'flex-row items-center gap-4' : 'flex-col'}`}>
+      <div className={`p-2 flex-1 flex bg-gradient-to-br from-white/30 to-transparent min-h-0 min-w-0 h-full w-full ${isWide ? 'flex-col sm:flex-row sm:items-center gap-2 sm:gap-4' : 'flex-col'}`}>
         
-        <div className={`flex items-start gap-1.5 ${isWide ? 'w-fit max-w-[35%] shrink-0' : 'pr-14'}`}>
+        <div className={`flex items-start gap-1.5 ${isWide ? 'w-full sm:w-fit sm:max-w-[50%] shrink-0 pr-14 sm:pr-0' : 'pr-14'}`}>
           <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: st.bg }} />
-          <div className="min-w-0 overflow-hidden">
-            <p className="font-bold text-xs truncate" style={{ color: st.text }}>{ag.cliente?.nome || '—'}</p>
-            <p className="text-[10px] text-dark/60 font-medium truncate">{ag.servico?.nome} · {ag.profissional?.nome}</p>
-            <p className="text-[10px] text-dark/40 font-medium">{ag.hora_inicio?.slice(0,5)} – {ag.hora_fim?.slice(0,5)}</p>
+          <div className="min-w-0 overflow-hidden w-full">
+            <p className="font-bold text-xs sm:text-sm text-wrap break-words leading-tight" style={{ color: st.text }}>{ag.cliente?.nome || '—'}</p>
+            <p className="text-[10px] text-dark/60 font-medium text-wrap break-words mt-0.5 leading-tight">{ag.servico?.nome} <span className="opacity-70">· {ag.profissional?.nome}</span></p>
+            <p className="text-[10px] text-dark/40 font-medium mt-0.5">{ag.hora_inicio?.slice(0,5)} – {ag.hora_fim?.slice(0,5)}</p>
           </div>
         </div>
 
         {/* Observation prominently in the middle */}
         {ag.observacoes && (
-          <div className={`${isWide ? 'flex-1 min-w-0 h-full flex items-center pr-20 overflow-hidden' : 'mt-1.5 flex-1 min-h-0 overflow-hidden w-full'}`}>
+          <div className={`${isWide ? 'w-full sm:flex-1 sm:min-w-0 sm:h-full flex items-center sm:pr-20 overflow-hidden' : 'mt-1.5 flex-1 min-h-0 overflow-hidden w-full'}`}>
             <div 
-              className={`inline-flex items-center gap-1.5 p-1.5 rounded-lg border border-white/30 w-full ${isWide ? 'max-h-full' : ''}`}
+              className={`inline-flex items-center gap-1.5 p-1.5 rounded-lg border border-white/30 w-full ${isWide ? 'sm:max-h-full' : ''}`}
               style={{ background: 'rgba(255,255,255,0.4)' }}
               title={ag.observacoes}
             >

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FiX, FiRotateCcw, FiTrash2, FiCheck } from 'react-icons/fi';
+import Portal from './Portal';
 
 const COLORS = ['#ff2d55', '#ff9500', '#ffd60a', '#30d158', '#0a84ff', '#5e5ce6', '#bf5af2', '#111111', '#ffffff'];
 
@@ -129,49 +130,51 @@ export default function FacePaintModal({ open, baseImageSrc, initialImage, onClo
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col">
-      <div className="p-3 sm:p-4 border-b border-white/15 flex flex-wrap items-center gap-2">
-        <button onClick={onClose} className="px-3 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center gap-2">
-          <FiX size={16} />
-          Fechar
-        </button>
-        <div className="h-6 w-px bg-white/20" />
-        {COLORS.map((color) => (
-          <button
-            key={color}
-            onClick={() => setCurrentColor(color)}
-            className={`w-7 h-7 rounded-full border-2 transition-transform ${currentColor === color ? 'border-white scale-110' : 'border-white/30'}`}
-            style={{ backgroundColor: color }}
-            title={color}
-          />
-        ))}
-        <div className="ml-2 flex items-center gap-2 text-white text-sm">
-          Traço
-          <input type="range" min="1" max="16" value={lineWidth} onChange={(e) => setLineWidth(Number(e.target.value))} />
+    <Portal>
+      <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col">
+        <div className="p-3 sm:p-4 border-b border-white/15 flex flex-wrap items-center gap-2">
+          <button onClick={onClose} className="px-3 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center gap-2">
+            <FiX size={16} />
+            Fechar
+          </button>
+          <div className="h-6 w-px bg-white/20" />
+          {COLORS.map((color) => (
+            <button
+              key={color}
+              onClick={() => setCurrentColor(color)}
+              className={`w-7 h-7 rounded-full border-2 transition-transform ${currentColor === color ? 'border-white scale-110' : 'border-white/30'}`}
+              style={{ backgroundColor: color }}
+              title={color}
+            />
+          ))}
+          <div className="ml-2 flex items-center gap-2 text-white text-sm">
+            Traço
+            <input type="range" min="1" max="16" value={lineWidth} onChange={(e) => setLineWidth(Number(e.target.value))} />
+          </div>
+          <button onClick={handleUndo} className="ml-auto px-3 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center gap-2">
+            <FiRotateCcw size={16} />
+            Voltar
+          </button>
+          <button onClick={handleClear} className="px-3 py-2 rounded-xl bg-red-500/80 text-white hover:bg-red-500 transition-colors flex items-center gap-2">
+            <FiTrash2 size={16} />
+            Limpar
+          </button>
+          <button onClick={handleSave} className="px-3 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center gap-2">
+            <FiCheck size={16} />
+            Salvar
+          </button>
         </div>
-        <button onClick={handleUndo} className="ml-auto px-3 py-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors flex items-center gap-2">
-          <FiRotateCcw size={16} />
-          Voltar
-        </button>
-        <button onClick={handleClear} className="px-3 py-2 rounded-xl bg-red-500/80 text-white hover:bg-red-500 transition-colors flex items-center gap-2">
-          <FiTrash2 size={16} />
-          Limpar
-        </button>
-        <button onClick={handleSave} className="px-3 py-2 rounded-xl bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center gap-2">
-          <FiCheck size={16} />
-          Salvar
-        </button>
+        <div ref={wrapperRef} className="flex-1 overflow-auto p-3 sm:p-6 flex items-center justify-center">
+          <canvas
+            ref={canvasRef}
+            className="max-w-full h-auto bg-white rounded-xl shadow-2xl touch-none"
+            onPointerDown={drawStart}
+            onPointerMove={drawMove}
+            onPointerUp={drawEnd}
+            onPointerCancel={drawEnd}
+          />
+        </div>
       </div>
-      <div ref={wrapperRef} className="flex-1 overflow-auto p-3 sm:p-6 flex items-center justify-center">
-        <canvas
-          ref={canvasRef}
-          className="max-w-full h-auto bg-white rounded-xl shadow-2xl touch-none"
-          onPointerDown={drawStart}
-          onPointerMove={drawMove}
-          onPointerUp={drawEnd}
-          onPointerCancel={drawEnd}
-        />
-      </div>
-    </div>
+    </Portal>
   );
 }

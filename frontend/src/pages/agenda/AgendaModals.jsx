@@ -15,18 +15,18 @@ function timeToMin(t) { if (!t) return 0; const p = t.split(':'); return parseIn
 function Modal({ open, onClose, title, children, wide }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-elegant ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[92vh] overflow-y-auto animate-scaleIn`}
+        className={`relative bg-white rounded-2xl shadow-elegant ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[90vh] flex flex-col animate-scaleIn`}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-primary sticky top-0 bg-white z-10 rounded-t-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-primary shrink-0">
           <h3 className="font-heading font-semibold text-dark text-lg">{title}</h3>
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-dark/40 hover:text-dark hover:bg-gray-200 transition-colors">
             <FiX size={18} />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-5 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

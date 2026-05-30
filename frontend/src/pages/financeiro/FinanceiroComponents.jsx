@@ -407,15 +407,15 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-elegant max-w-md w-full animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-5 sm:p-6 border-b border-primary sticky top-0 bg-white z-10">
+      <div className="bg-white rounded-3xl shadow-elegant max-w-md w-full animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-primary shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="font-heading text-base sm:text-lg font-semibold text-dark">Registrar Pagamento</h3>
             <button onClick={onClose} className="p-2 -mr-2 text-dark/40 hover:text-dark rounded-full hover:bg-soft transition"><FiX size={20} /></button>
           </div>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-4">
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           <div className="bg-soft rounded-2xl p-4 space-y-2">
             <div className="flex justify-between text-sm gap-4">
               <span className="text-dark/50 whitespace-nowrap">Procedimento</span>
@@ -487,7 +487,7 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
         </div>
 
         {pagamento.status !== 'pago' && (
-          <div className="p-5 sm:p-6 pt-0 flex flex-col sm:flex-row gap-3">
+          <div className="p-5 sm:p-6 pt-0 flex flex-col sm:flex-row gap-3 shrink-0">
             <button
               onClick={() => handleSave(false)}
               disabled={saving || !valorPago}
@@ -557,15 +557,15 @@ export function ExpenseModal({ onClose, onSaved, categorias = [], cartoes = [] }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-5 sm:p-6 border-b border-primary sticky top-0 bg-white z-10">
+      <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-primary shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="font-heading text-base sm:text-lg font-semibold text-dark">Novo Gasto</h3>
             <button onClick={onClose} className="p-2 -mr-2 text-dark/40 hover:text-dark rounded-full hover:bg-soft transition"><FiX size={20} /></button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 flex flex-col">
           <div className="grid grid-cols-2 gap-3">
             {['clinica', 'pessoal'].map(t => (
               <button
@@ -653,9 +653,11 @@ export function ExpenseModal({ onClose, onSaved, categorias = [], cartoes = [] }
             <textarea value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} rows={2} className="w-full px-4 py-3 rounded-xl border border-primary focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none resize-none bg-white text-sm" />
           </div>
 
-          <button type="submit" disabled={saving} className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60">
-            {saving ? 'Salvando...' : 'Salvar Gasto'}
-          </button>
+          <div className="mt-auto pt-4 shrink-0">
+            <button type="submit" disabled={saving} className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-accent to-accent-dark text-white font-semibold hover:shadow-lg transition-all disabled:opacity-60">
+              {saving ? 'Salvando...' : 'Salvar Gasto'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

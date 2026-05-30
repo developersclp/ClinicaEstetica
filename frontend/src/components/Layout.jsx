@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FiHome, FiUsers, FiFileText, FiClipboard, FiPlusCircle, FiCalendar, FiMenu, FiX, FiLogOut, FiChevronLeft, FiChevronRight, FiDollarSign, FiBox, FiDownload } from 'react-icons/fi';
+import Portal from './Portal';
 
 const navItems = [
   { to: '/', icon: FiHome, label: 'Dashboard' },
@@ -190,7 +191,8 @@ export default function Layout() {
 
       {/* Modal de Instalação Universal (Fallback) */}
       {showFallbackModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowFallbackModal(false)}>
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowFallbackModal(false)}>
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl transform transition-all" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-gradient-to-br from-accent to-secondary rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4">
@@ -237,7 +239,8 @@ export default function Layout() {
               Entendi
             </button>
           </div>
-        </div>
+          </div>
+        </Portal>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Portal from '../../components/Portal';
 import { FiX, FiDollarSign, FiCreditCard, FiSmartphone, FiCheck, FiAlertTriangle, FiTag, FiPlus, FiEdit2, FiTrash2, FiInfo, FiCalendar } from 'react-icons/fi';
 import {
   atualizarPagamento,
@@ -337,7 +338,8 @@ export function StatCard({ icon: Icon, label, value, variacao, color = 'accent',
 // Added correctly to wrap specific destructive/state change actions with a modal
 export function ConfirmModal({ title, message, onConfirm, onCancel, confirmLabel = 'Confirmar' }) {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onCancel}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onCancel}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-sm w-full animate-scaleIn p-6 text-center" onClick={e => e.stopPropagation()}>
         <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
           <FiInfo className="text-accent" size={24} />
@@ -360,6 +362,7 @@ export function ConfirmModal({ title, message, onConfirm, onCancel, confirmLabel
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -406,7 +409,8 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-md w-full animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary shrink-0">
           <div className="flex items-center justify-between">
@@ -506,6 +510,7 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
         )}
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -556,7 +561,8 @@ export function ExpenseModal({ onClose, onSaved, categorias = [], cartoes = [] }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary shrink-0">
           <div className="flex items-center justify-between">
@@ -661,6 +667,7 @@ export function ExpenseModal({ onClose, onSaved, categorias = [], cartoes = [] }
         </form>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -689,7 +696,8 @@ export function ClientHistoryModal({ clienteId, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-2xl w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
           <div className="flex items-center justify-between gap-4">
@@ -752,6 +760,7 @@ export function ClientHistoryModal({ clienteId, onClose }) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -814,7 +823,8 @@ export function CategoryManagerModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
           <div className="flex items-center justify-between">
@@ -897,6 +907,7 @@ export function CategoryManagerModal({ onClose, onSaved }) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -937,7 +948,8 @@ export function CardManagerModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
           <div className="flex items-center justify-between">
@@ -1006,6 +1018,7 @@ export function CardManagerModal({ onClose, onSaved }) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 
@@ -1025,7 +1038,8 @@ export function CardFaturaModal({ cartaoId, onClose }) {
   if (!cartaoId) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
+    <Portal>
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-elegant max-w-lg w-full animate-scaleIn max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 sm:p-6 border-b border-primary relative z-10 shrink-0">
           <div className="flex items-center justify-between">
@@ -1067,5 +1081,6 @@ export function CardFaturaModal({ cartaoId, onClose }) {
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

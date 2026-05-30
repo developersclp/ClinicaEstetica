@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { FiX, FiSearch, FiUser, FiEdit2, FiCalendar, FiAlertCircle, FiCheck, FiXCircle, FiPlay, FiRefreshCw, FiGlobe, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import Portal from '../../components/Portal';
 import {
   getAgendaClientes, criarAgendaCliente, getPacientesDisponiveis,
   getServicos, getProfissionais, criarAgendamento, atualizarAgendamento,
@@ -15,20 +16,22 @@ function timeToMin(t) { if (!t) return 0; const p = t.split(':'); return parseIn
 function Modal({ open, onClose, title, children, wide }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className={`relative bg-white rounded-2xl shadow-elegant ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[90vh] flex flex-col animate-scaleIn`}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-5 border-b border-primary shrink-0">
-          <h3 className="font-heading font-semibold text-dark text-lg">{title}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-dark/40 hover:text-dark hover:bg-gray-200 transition-colors">
-            <FiX size={18} />
-          </button>
+    <Portal>
+      <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+        <div
+          className={`relative bg-white rounded-2xl shadow-elegant ${wide ? 'w-full max-w-2xl' : 'w-full max-w-lg'} max-h-[90vh] flex flex-col animate-scaleIn`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between p-5 border-b border-primary shrink-0">
+            <h3 className="font-heading font-semibold text-dark text-lg">{title}</h3>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-dark/40 hover:text-dark hover:bg-gray-200 transition-colors">
+              <FiX size={18} />
+            </button>
+          </div>
+          <div className="p-5 overflow-y-auto">{children}</div>
         </div>
-        <div className="p-5 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </Portal>
   );
 }
 

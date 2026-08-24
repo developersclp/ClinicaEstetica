@@ -514,6 +514,25 @@ def atualizar_pagamento(
 
     update_data = payload.dict(exclude_unset=True)
 
+    # Handle valor_total change (adjust the total price)
+    if "valor_total" in update_data:
+        novo_total = update_data["valor_total"]
+        if novo_total <= 0:
+            raise HTTPException(400, "Valor total deve ser maior que zero")
+        if novo_total < pag.valor_pago:
+            raise HTTPException(400, "Valor total não pode ser menor que o valor já pago")
+        pag.valor_total = novo_total
+        # Recalculate status based on existing valor_pago vs new total
+        if pag.valor_pago >= novo_total:
+            pag.status = "pago"
+            if not pag.data_pagamento:
+                pag.data_pagamento = _now_br().date()
+        elif pag.valor_pago > 0:
+            pag.status = "parcial"
+        else:
+            cutoff = _now_br().date() - timedelta(days=7)
+            pag.status = "atrasado" if pag.data_atendimento <= cutoff else "pendente"
+
     if "valor_pago" in update_data:
         novo_valor = update_data["valor_pago"]
         if novo_valor < 0:
@@ -534,7 +553,7 @@ def atualizar_pagamento(
             pag.status = "atrasado" if pag.data_atendimento <= cutoff else "pendente"
 
     for key, value in update_data.items():
-        if key != "valor_pago":  # already handled above
+        if key not in ("valor_pago", "valor_total"):  # already handled above
             setattr(pag, key, value)
 
     db.commit()

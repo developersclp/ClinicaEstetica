@@ -66,6 +66,7 @@ class CartaoCreditoResponse(BaseModel):
 
 # ─── Pagamento ─────────────────────────────────────────────────────
 class PagamentoUpdate(BaseModel):
+    valor_total: Optional[float] = None
     valor_pago: Optional[float] = None
     forma_pagamento: Optional[str] = None
     data_pagamento: Optional[date] = None

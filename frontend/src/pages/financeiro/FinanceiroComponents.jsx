@@ -372,22 +372,64 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
   const [valorPago, setValorPago] = useState('');
   const [forma, setForma] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingValorTotal, setEditingValorTotal] = useState(false);
+  const [novoValorTotal, setNovoValorTotal] = useState('');
+  const [savingTotal, setSavingTotal] = useState(false);
+  const [localValorTotal, setLocalValorTotal] = useState(null);
 
   useEffect(() => {
     if (pagamento) {
       setValorPago(pagamento.valor_pago > 0 ? pagamento.valor_pago.toString() : '');
       setForma(pagamento.forma_pagamento || '');
+      setLocalValorTotal(pagamento.valor_total);
+      setEditingValorTotal(false);
+      setNovoValorTotal('');
     }
   }, [pagamento]);
 
   if (!pagamento) return null;
 
-  const restante = pagamento.valor_total - pagamento.valor_pago;
+  const valorTotal = localValorTotal ?? pagamento.valor_total;
+  const restante = valorTotal - pagamento.valor_pago;
+
+  const handleEditValorTotal = () => {
+    setNovoValorTotal(valorTotal.toString());
+    setEditingValorTotal(true);
+  };
+
+  const handleCancelEditTotal = () => {
+    setEditingValorTotal(false);
+    setNovoValorTotal('');
+  };
+
+  const handleSaveValorTotal = async () => {
+    const parsed = parseFloat(novoValorTotal);
+    if (!parsed || parsed <= 0) {
+      alert('Informe um valor válido maior que zero.');
+      return;
+    }
+    if (parsed < pagamento.valor_pago) {
+      alert('O novo valor não pode ser menor que o valor já pago (R$ ' + pagamento.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ').');
+      return;
+    }
+    setSavingTotal(true);
+    try {
+      await atualizarPagamento(pagamento.id, { valor_total: parsed });
+      setLocalValorTotal(parsed);
+      setEditingValorTotal(false);
+      setNovoValorTotal('');
+      onSaved?.();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Erro ao alterar valor total');
+    } finally {
+      setSavingTotal(false);
+    }
+  };
 
   const handleSave = async (payFull) => {
     setSaving(true);
     try {
-      const val = payFull ? pagamento.valor_total : parseFloat(valorPago) || 0;
+      const val = payFull ? valorTotal : parseFloat(valorPago) || 0;
       await atualizarPagamento(pagamento.id, {
         valor_pago: val,
         forma_pagamento: forma || undefined,
@@ -429,9 +471,51 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
               <span className="text-dark/50">Data</span>
               <span className="font-medium text-dark">{dataBR(pagamento.data_atendimento)}</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between items-center text-sm">
               <span className="text-dark/50">Valor Total</span>
-              <span className="font-bold text-accent text-lg">R$ {pagamento.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              {editingValorTotal ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-dark/40 text-xs">R$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={novoValorTotal}
+                    onChange={e => setNovoValorTotal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveValorTotal(); if (e.key === 'Escape') handleCancelEditTotal(); }}
+                    autoFocus
+                    className="w-24 px-2 py-1 rounded-lg border border-accent/50 focus:border-accent focus:ring-1 focus:ring-accent/30 outline-none text-dark text-sm font-bold text-right bg-white"
+                  />
+                  <button
+                    onClick={handleSaveValorTotal}
+                    disabled={savingTotal}
+                    className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50 transition disabled:opacity-40"
+                    title="Confirmar"
+                  >
+                    <FiCheck size={16} />
+                  </button>
+                  <button
+                    onClick={handleCancelEditTotal}
+                    className="p-1 rounded-lg text-dark/40 hover:bg-red-50 hover:text-red-500 transition"
+                    title="Cancelar"
+                  >
+                    <FiX size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-accent text-lg">R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  {pagamento.status !== 'pago' && (
+                    <button
+                      onClick={handleEditValorTotal}
+                      className="p-1 rounded-lg text-dark/30 hover:text-accent hover:bg-accent/5 transition"
+                      title="Alterar valor total"
+                    >
+                      <FiEdit2 size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             {pagamento.valor_pago > 0 && (
               <div className="flex justify-between text-sm">
@@ -479,7 +563,7 @@ export function PaymentModal({ pagamento, onClose, onSaved }) {
                   type="number"
                   step="0.01"
                   min="0"
-                  max={pagamento.valor_total}
+                  max={valorTotal}
                   value={valorPago}
                   onChange={e => setValorPago(e.target.value)}
                   placeholder={`Restante: R$ ${restante.toFixed(2)}`}
